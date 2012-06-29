@@ -1,0 +1,915 @@
+<!-- Monstrad - a puzzle game inspired by NAWNCO (by Increpare). -->
+
+<!-- Comment tag meanings
+
+`OLD    I plan to remove the following code, but I'm keeping it around for reference or to prevent bugs from popping up.
+
+`TODO   The following code needs to be filled in, but not quite yet.
+
+`NOTE   Just a note about the following code.
+
+`???    A note about something I'm unsure of.
+
+`IDEA   An idea.
+
+`       Some other note to myself which I want to keep track of.
+
+-->
+
+<html>
+  <head>
+    <script type="text/javascript" src="akihabara/gbox.js"></script>
+    <script type="text/javascript" src="akihabara/iphopad.js"></script>
+    <script type="text/javascript" src="akihabara/trigo.js"></script>
+    <script type="text/javascript" src="akihabara/toys.js"></script>
+    <script type="text/javascript" src="akihabara/help.js"></script>
+    <script type="text/javascript" src="akihabara/tool.js"></script>
+    <script type="text/javascript" src="akihabara/gamecycle.js"></script>
+    <script type="text/javascript" src="akihabara/mouse.js"></script>
+    <style>BODY { -webkit-user-select: none; margin: 0px }</style>
+  </head>
+  <body></body>
+  
+  <script id=utility>
+	// These are utility functions and other detritus.
+    // They're necessary for the game, but completely separable (in
+    // the sense that they could be re-used for other Akihabara games).
+    function randomItem(array) {
+        return array[help.random(0, array.length)];
+    }
+    function clearBuffer() {
+        // Clears the game screen.
+		
+        gbox.blitFade(gbox.getBufferContext(), {color: bg_color, alpha: 1});
+    }
+    function disableIntro(maingamevar) {
+        // Disable the title/intro routines
+        maingamevar.gameMenu = function() { return true; };
+        maingamevar.gameTitleIntroAnimation = function(){ return true; };
+        maingamevar.gameIntroAnimation = function(){ return true; };
+		maingamevar.pressStartIntroAnimation = function(reset) {return true};
+	}
+	
+	gbox._keymap.enter = 13;
+	gbox._keymap.shift = 16;
+	gbox._keymap.tab = 9;
+	gbox._keymap.space = 32;
+	gbox._keymap.plus = 187;
+	gbox._keymap.minus = 189;
+	gbox._keymap.backspace = 8;
+	gbox._keymap.n = 78;
+	gbox._keymap.r = 82;
+	gbox._keymap.s = 83;
+    gbox._keymap.one = 49;
+    gbox._keymap.two = 50;
+    gbox._keymap.three = 51;
+    gbox._keymap.four = 52;
+    gbox._keymap.five = 53;
+	letter_translation = [[null, ' '], [0, 'a'], [1, 'b'], [2, 'c'], [3, 'd'], [4, 'e'], [5, 'f'], [6, 'g'], [7, 'h'], [8, 'i'], [9, 'j'], [10, 'k'], [11, 'l'], [12, 'm'], [13, 'n'], [14, 'o'], [15, 'p'], [16, 'q'], [17, 'r'], [18, 's'], [19, 't'], [20, 'u'], [21, 'v'], [22, 'w'], [23, 'x'], [24, 'y'], [25, 'z']]
+  </script>
+  
+  <script id=game_vars>
+    // GLOBAL GAME CONSTANTS AND VARIABLES
+    var maingame;
+	var bg_color = "rgb(0,0,20)"
+	
+	var board_layers;
+	
+	// Size of the smallest monad (pixels)
+    var tilesize = 20;
+    
+	// Size of the board, in tiles
+	var board_width = 16;
+    var board_height = 16;
+	var board_area = {w:board_width*tilesize, h:board_height*tilesize};
+	
+	// Position of the board's top-left corner
+	var board_x0 = 40;
+	var board_y0 = 100;
+	
+	// Position of the monad panel (top-left corner)
+	var mp_x0 = 440;
+	var mp_y0 = board_y0 + 1.5*tilesize;
+	
+	// Position of game title
+	var title_x0 = board_x0;
+	var title_y0 = 20;
+	
+	// Position of the message text
+	var message_x0 = title_x0 + 100;
+	var message_y0 = title_y0;
+	
+	// Position of the player score label
+	var score_x0 = mp_x0;
+	var score_y0 = title_y0;
+	
+	
+	// Monster cursor image data
+	var cursor_width = 48;
+	var cursor_height = 54;
+	var cursor_x = 3;
+	var cursor_y = 9;
+	
+	// Camera buffer widths
+	var buffer_x = 5*tilesize;
+	var buffer_y = 5*tilesize;
+    
+    // These have the same order as the species in the monad image.
+    var species = ["1111", "1222", "1211", "1112",
+                   "1121", "1212", "1122", "1221",
+                   "1123", "1213", "1233", "1232",
+                   "1231", "1223", "1234"];
+	var blank = 15; // the index of the blank tile on the tilemap
+	
+	// SPECIES GROUPS
+	
+	var species_grp_names = {
+		"stone": ["1111"],
+		"plant": ["1222", "1211", "1112", "1121"],
+		"border":["1212", "1122"],
+		"cross": ["1221"],
+		"coast": ["1123", "1213", "1233", "1232"],
+		"road":  ["1231", "1223"],
+		"sea":   ["1234"]
+	};
+	
+	var species_grps = {
+		"1111":"stone",
+		"1222":"plant",
+		"1211":"plant",
+		"1112":"plant",
+		"1121":"plant",
+		"1212":"border",
+		"1122":"border",
+		"1221":"cross",
+		"1123":"coast",
+		"1213":"coast",
+		"1233":"coast",
+		"1232":"coast",
+		"1231":"road",
+		"1223":"road",
+		"1234":"sea"
+	};
+	
+	var point_values = {
+		"stone": 20,
+		"cross": 15,
+		"border":10,
+		"plant": 5,
+		"coast": 1,
+		"road":  1,
+		"sea":   0,
+	}
+	
+	// PLAYER SCORE
+	var score = 0;
+	
+  </script>
+  
+  <script id=game_boards>
+	/*
+	TUTORIAL BOARDS
+	*/
+	
+	// 1. Introducing the way to eat monads
+	tut1a = [[1, 2], [2, 1]];
+	tut1b = [[1, 2], [3, 2]];
+	tut1c = [[1, 2], [3, 4]];
+	
+	// 2. Multiple monads on a larger board
+	tut2 = [[1, 2, 3, 3], [4, 2, 5, 3]];
+	
+	
+	tut3 = [[1, 2, 3, 3], [2, 1, 3, 3], ['a', 6, 8, 8], [7, 7, 9, 8]];
+  </script>
+  
+  <script id=game_helpers>
+    // GAME-RELATED HELPER FUNCTIONS AND SHORTCUTS
+    function refreshBoard(board_id, board) {
+		if (board==null) board=getBoard(board_id);
+		context = getContext(board_id);
+		gbox.blitTilemap(context, board);
+	}
+	function pointCamera() {
+	  var cam = gbox.getCamera();
+	  var cursor = gbox.getObject('cursor', 'b1_cursor');
+	  var x = (cursor.x+1)*tilesize; var y = (cursor.y+1)*tilesize;
+	  var W = gbox._screenw;         var H = gbox._screenh;
+	 
+	  if ((x - cam.x) < (buffer_x))     gbox.setCameraX(cam.x + (x - cam.x) - buffer_x,       board_area);
+	  if ((y - cam.y) < (buffer_y))     gbox.setCameraY(cam.y + (y - cam.y) - buffer_y,       board_area);
+	  if ((x - cam.x) > (W - buffer_x)) gbox.setCameraX(cam.x + (x - cam.x) - (W - buffer_x), board_area);
+	  if ((y - cam.y) > (H - buffer_y)) gbox.setCameraY(cam.y + (y - cam.y) - (H - buffer_y), board_area);
+	}
+	function display(text) {
+		maingame.hud.setValue('message', 'value', text);
+		maingame.hud.redraw();
+	}
+	function outOfBounds(x, y) {
+		return (x<0 || y<0 || x>board_width || y>board_height)
+	}
+	function makeEmptyMap(w, h) {
+        // Lists of position indices for the map array
+        cols = help.seq(0, w);
+        rows = help.seq(0, h);
+        
+        // Initialize the map array
+        var map = new Array(h);
+        for (var i in rows) {
+			map[i] = new Array(w);
+			for (var j in cols) map[i][j]=blank;
+		}
+		
+		return map;
+	}
+	function makeRandomMap(w, h) {
+        // This function must return a 2d array of INDICES.
+        // The indices refer to WHICH MONADS from the monad tilemap
+        // get placed in a particular array spot.
+		
+        // Lists of position indices for the map array
+        cols = help.seq(0, w);
+        rows = help.seq(0, h);
+        
+        // Initialize the map array
+        var map = new Array(h);
+        for (var i in rows) { map[i] = new Array(w); }
+        
+        // Put random indices in it
+        for (var i in rows) for (var j in cols) {
+            map[i][j] = help.random(0, species.length);
+        }
+        
+        return map;
+    }
+	function loadNewBoard(int_map) {
+		var new_map = help.asciiArtToMap(evalRandomMap(int_map), letter_translation);
+		
+		board_height = new_map.length;
+		board_width = new_map[0].length;
+		board_area = {w:board_width*tilesize, h:board_height*tilesize};
+		
+		for (i in board_layers) {
+			var b = board_layers[i];
+			var canvas = gbox.getCanvas(b.id + '_canvas');
+			canvas.width = board_area.w;
+			canvas.height = board_area.h;
+			b.map = b.id=='b1'? new_map : makeEmptyMap(board_width, board_height);
+			help.finalizeTilemap(b);
+			refreshBoard(b.id, b);
+		}
+		
+		var cursor = gbox.getObject('cursor', 'b1_cursor');
+		cursor.board = board_layers[0];
+		cursor.x=0;
+		cursor.y=0;
+	}
+	function getCanvas(board_id) {
+        // Retrieves a board's HTML canvas.
+        return gbox.getCanvas(board_id+"_canvas");
+    }
+    function getContext(board_id) {
+        // Retrieves a board's HTML canvas context.
+        //return gbox.getCanvasContext(board_id+"_canvas");
+		return getCanvas(board_id).getContext("2d");
+    }
+    function getBoard(board_id) {
+        // Retrieves a board object.
+        return gbox.getObject('boards', board_id);
+    }
+    function getMonad(board_id, x, y) {
+		if (outOfBounds(x, y)) return null;
+        x*=tilesize; y*=tilesize;
+		//console.log(x, y, getBoard(board_id));
+        return help.getTileInMap(x, y, getBoard(board_id));
+    }
+	function getNonBlankMonad(x, y) {
+		// Get a list of all board IDs, in reverse order
+		var boards = [];
+		for (i in board_layers.reverse()) boards.push(board_layers[i].id);
+		board_layers.reverse();
+		
+		var m = getMonad(boards.pop(), x, y);
+		while (m==blank && boards.length>0) m = getMonad(boards.pop(), x, y);
+		// `???  Should this function also return WHICH board holds that monad?
+		return m;
+		
+	}
+	function eraseMonad(board_id, x, y) {
+		if (outOfBounds(x, y)) return;
+		board = getBoard(board_id);
+		board.map[y][x]=blank;
+		//`??? Perhaps this should not be blitted. (This function gets called from the cursor's first() function, not blit(), and first() isn't supposed to handle graphics.
+		refreshBoard(board_id);
+	}
+	function eraseTetrad(board_id, x, y) {
+		//Erases the tetrad at x, y (upper-left corner).
+		s = getBoard(board_id).scale;
+		eraseMonad(board_id, x,   y);
+		eraseMonad(board_id, x+s, y);
+		eraseMonad(board_id, x,   y+s);
+		eraseMonad(board_id, x+s, y+s);
+	}
+	function placeMonad(board_id, x, y, m) {
+		// Places the monad (given by its index) at the given position.
+		if (outOfBounds(x, y)) return;
+		board = getBoard(board_id);
+		board.map[y][x] = m;
+		refreshBoard(board_id);
+		
+	}
+	function placeMonadByPixel(board_id, x, y, m) {
+		// Places the monad (given by its index) at the given pixel position.
+		board=getBoard(board_id);
+		x=Math.floor(x/(tilesize));
+		y=Math.floor(y/(tilesize));
+		placeMonad(board_id, x, y, m);
+	}
+	function placeRandomMonad(board_id, x, y) {
+		//Puts a random monad at x, y.
+		//**Replaces any monad that was already there.
+		if (outOfBounds(x, y)) return;
+		board = getBoard(board_id);
+		board.map[y][x] = help.random(0, species.length);
+		refreshBoard(board_id);
+	}
+	function placeRandomTetrad(board_id, x, y) {
+		//Puts random monads in the tetrad at x, y (upper-left corner).
+		placeRandomMonad(board_id, x,   y);
+		placeRandomMonad(board_id, x+1, y);
+		placeRandomMonad(board_id, x,   y+1);
+		placeRandomMonad(board_id, x+1, y+1);
+	}
+	function readTetrad(board_id, x1, y1, default_monad) {
+		board = getBoard(board_id);
+		
+		x2 = x1 + board.scale;
+		y2 = y1 + board.scale;
+		
+		if (default_monad=='wrap') {
+			if (x1<0) x1+=board_width;
+			if (y1<0) y1+=board_height;
+			x1 %= board_width;
+			x2 %= board_width;
+			y1 %= board_height;
+			y2 %= board_height;
+		}
+		
+		//console.log("Reading tetrad on", board_id, "at", x1, y1, x2, y2);
+		
+		var tetrad = [
+		  getMonad(board_id, x1, y1),	// NW corner
+		  getMonad(board_id, x1, y2), // SW
+		  getMonad(board_id, x2, y1),   // NE
+		  getMonad(board_id, x2, y2)  // SE
+		]
+		
+		if (default_monad!='wrap' && default_monad!=null) {
+			for (var i in tetrad) if (tetrad[i]==null) tetrad[i]=default_monad;
+		}
+		
+		return tetrad;
+	}
+	function generateMonad(tetrad_list, combine_grps) {
+		// Returns the INDEX (in the species list) of the monad generated from
+		// the given tetrad. The monads in the tetrad list should also be indices.
+		var monads = {};
+		var new_monad = [];
+		var numbers = ['4', '3', '2', '1'];
+		for (var i in tetrad_list) {
+			m = tetrad_list[i];
+			if (combine_grps) m = species_grps[species[m]];
+			if (!(m in monads)) monads[m] = numbers.pop();
+			new_monad.push(monads[m]);
+		}
+		return species.indexOf(new_monad.join(""));
+	}
+	function scoreMonad(monad, multiplier) {
+		score += point_values[monad];
+		maingame.hud.setValue('score', 'value', "Score: "+score.toString());
+		
+		display("You made a "+monad+"! +"+point_values[monad].toString());
+	}
+	function resetScore() {
+		score = 0;
+	}
+	function evalRandomMap(int_map, exclude) {
+		/* This method takes a 2d array of numbers and converts it to an ASCII board map which is readable by help.asciiArtToMap.
+		The catch is: the numbers only designate which monads in the
+		board are the same. So the number 1 would represent any random
+		monad, but multiple 1s on the same board would be the same 
+		random monad.
+		Used for generating a board from a template.*/
+		
+		// 1. Match integers to random monads
+		
+		var random_letters = {};
+		
+		// This code block would be for the 'hard' difficulty (separate monads)
+		/*
+		var letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o']; // Only 15 are needed
+		for (var i=0; i<15; i++) {
+			random_letters[i] = letters.splice(help.random(0, letters.length), 1)[0];
+		}
+		*/
+		
+		// This code block is for normal difficulty (monad groups)
+		var letters = [['a'], ['b', 'c', 'd', 'e'], ['f', 'g'], ['h'], ['i', 'j', 'k', 'l'], ['m', 'n'], ['o']];
+		
+		// Take out excludable letters (specified in the exclude argument)
+		k = 7;
+		/*
+		if (exclude && exclude.length>0) 
+			for (var i=0; i<7; i++) {
+				for (j in exclude) {
+					if (letters[i].indexOf(exclude[j])!=-1) 
+				}
+			}
+		*/
+		for (var i=0; i<k; i++) {
+			random_letters[i] = letters.splice(help.random(0, letters.length), 1)[0];
+		}
+		// Put more numbers in just in case the int_map template has numbers up to 15
+		letters = [['a'], ['b', 'c', 'd', 'e'], ['f', 'g'], ['h'], ['i', 'j', 'k', 'l'], ['m', 'n'], ['o']];
+		for (var i=k; i<15; i++) {
+			random_letters[i] = letters.splice(help.random(0, letters.length), 1)[0];
+		}
+		
+		
+		// 2. Apply it to the board map
+		var ascii_map = [];
+		for (row in int_map) {
+			var new_row = "";
+			
+			// This is for the hard difficulty
+			// (Doesn't do potential letters in the int map, or excludable letters)
+			//for (i in int_map[row]) new_row += random_letters[int_map[row][i]];
+			
+			// This is for the normal difficulty
+			for (i in int_map[row]) {
+				if (typeof int_map[row][i] == "number") {
+					grp = random_letters[int_map[row][i]];
+					new_row += grp[help.random(0, grp.length)];
+				}
+				else new_row += int_map[row][i];
+			}
+			
+			ascii_map.push(new_row);
+		}
+		
+		return ascii_map;
+	}
+  </script>
+
+  <script id=game_methods>  
+    // MAIN GAME METHODS
+    window.addEventListener('load', loadResources, false);
+    function loadResources() {
+        // Initialize Akihabara
+        help.akihabaraInit({
+            title:  'Tetrad',  // This appears in the title bar
+			width:  640,
+            height: 480,
+            zoom:   1,
+            splash: {background:"images/splash.png"} // Custom splash screen
+        });
+        
+        // Load images
+        gbox.addImage('font_small', 'images/font_small.png');
+        gbox.addImage('font_large', 'images/font_large.png');
+        gbox.addImage('logo', 'images/logo.png');
+        gbox.addImage('monad_tileset', 'images/monads.png');
+        gbox.addImage('cursor', 'images/cursor.png');
+        gbox.addImage('monster', 'images/monster_animation.png');
+        
+        // FONTS
+        gbox.addFont({ id: 'small', image: 'font_small', firstletter:' ', tileh:8, tilew:8, tilerow:255, gapx:0, gapy:0 });
+        gbox.addFont({ id: 'large', image: 'font_large', firstletter:' ', tileh:16, tilew:16, tilerow:510, gapx:0, gapy:0 });
+        
+        // MONAD TILESETS
+        gbox.addTiles({
+            id:  'monad_tiles',
+            image: 'monad_tileset',
+            tileh:tilesize, tilew:tilesize, tilerow:4,
+            gapx:0, gapy:0
+        });
+        
+        // CURSOR
+        gbox.addTiles({
+            id:    'cursor_tile',
+            image: 'cursor',
+			tilew: cursor_width,
+			tileh: cursor_height,
+			tilerow: 1,
+            //tileh: 2*tilesize+2+9+4, tilew: 2*tilesize+2+6, tilerow: 1,
+            gapx:  0,  gapy:  0
+        });
+        
+        // MONSTER ANIMATION
+		gbox.addTiles({
+			id: 'monster_tiles',
+			image: 'monster',
+			tilew: cursor_width,
+			tileh: cursor_height,
+			tilerow: 20,
+			gapx:0,
+			gapy:0
+		});
+		
+        gbox.loadAll(main);
+    }
+    function main() {        
+        // Specify the object groups, in a certain order
+        gbox.setGroups(['background', 'boards', 'cursor', 'game']); 
+
+        // Create the maingame; specify the title/intro routines
+        maingame = gamecycle.createMaingame('game', 'game');
+        //maingame.gameMenu = function() { return true; }; // disable difficulty menu
+		
+        maingame.gameIntroAnimation = function(){
+			gbox.blitFade(gbox.getBufferContext(), {alpha:1});
+		};
+        
+		maingame.pressStartIntroAnimation = function(reset) {
+            if (reset) {
+                toys.resetToy(this, "default-blinker");
+            } else {
+                toys.text.blink(this, "default-blinker", gbox.getBufferContext(), {font:"small", text:"[ PRESS Z TO START ]", valign:gbox.ALIGN_MIDDLE, halign:gbox.ALIGN_CENTER, dx:0, dy:Math.floor(gbox.getScreenH()/3), dw:gbox.getScreenW(), dh:Math.floor(gbox.getScreenH()/3)*2, blinkspeed:10});
+                return gbox.keyIsHit("a");
+            }
+        };
+        
+        // Disable stuff for now
+		//disableIntro(maingame);
+		
+		
+		//mainmenu={labels:[], id:[], 
+		
+		
+		// Initialize boards.
+		board_layers = [
+			createBoard('b1', {
+				next_board_id: 'b2',
+				map: makeRandomMap(board_width, board_height)
+				//map: help.asciiArtToMap(initial_board, letter_translation)
+			}),
+			createBoard('b2', {
+				scale: 2,
+				last_board_id: 'b1',
+				next_board_id: 'b3',
+				map: makeEmptyMap(board_width, board_height)
+			}),
+			createBoard('b3', {
+				scale: 4,
+				last_board_id: 'b2',
+				next_board_id: 'b4',
+				map:   makeEmptyMap(board_width, board_height)
+			}),
+			createBoard('b4', {
+				scale: 8,
+				last_board_id: 'b3',
+				next_board_id: 'b4',
+				map:   makeEmptyMap(board_width, board_height)
+			})
+		]
+        
+		// Monad panel
+		mp = createBoard('monad_panel', {
+			x: mp_x0+90,
+			y: mp_y0,
+			map: help.asciiArtToMap(['a   ', '    ', 'h   ', '    ', 'fg  ', '    ', 'dceb', '    ', 'jkli', '    ', 'mn  ', '    ', 'o   '], letter_translation)
+		});
+		
+        maingame.initializeGame = function() {
+            addBackground();
+			//addMouseControl();
+			
+			// Boards and cursor
+			for (i in board_layers) gbox.addObject(board_layers[i]);
+			addCursor('b1');
+            
+			// HUD
+			maingame.hud.setWidget('game_title', {
+				widget: 'label',
+				font:   'small',
+				value:  "TETRAD",
+				dx:     title_x0,
+				dy:     title_y0,
+				clear: true
+			});
+			maingame.hud.setWidget('score', {
+				widget: 'label',
+				font:   'small',
+				value:  "SCORE: 0",
+				dx:     score_x0,
+				dy:     score_y0,
+				clear: true
+			});
+			maingame.hud.setWidget('message', {
+				widget: 'label',
+				font:   'small',
+				value:  "",
+				dx:     message_x0,
+				dy:     message_y0,
+				clear: true
+			});
+			gbox.addObject(mp);// `TODO: Instead of manually putting the points text here, use the species_grps_points var
+			maingame.hud.setWidget('pts_stone', {
+				widget: 'label',
+				font:   'small',
+				value:  "20 points",
+				dx:     mp_x0,
+				dy:     mp_y0+6,
+				clear: true
+			});
+			maingame.hud.setWidget('pts_cross', {
+				widget: 'label',
+				font:   'small',
+				value:  "15 points",
+				dx:     mp_x0,
+				dy:     mp_y0+6 + 2*tilesize,
+				clear: true
+			});
+			maingame.hud.setWidget('pts_border', {
+				widget: 'label',
+				font:   'small',
+				value:  "10 points",
+				dx:     mp_x0,
+				dy:     mp_y0+6 + 4*tilesize,
+				clear: true
+			});
+			maingame.hud.setWidget('pts_plant', {
+				widget: 'label',
+				font:   'small',
+				value:  "5 points",
+				dx:     mp_x0,
+				dy:     mp_y0+6 + 6*tilesize,
+				clear: true
+			});
+			maingame.hud.setWidget('pts_coast', {
+				widget: 'label',
+				font:   'small',
+				value:  "1 point",
+				dx:     mp_x0,
+				dy:     mp_y0+6 + 8*tilesize,
+				clear: true
+			});
+			maingame.hud.setWidget('pts_road', {
+				widget: 'label',
+				font:   'small',
+				value:  "1 point",
+				dx:     mp_x0,
+				dy:     mp_y0+6 + 10*tilesize,
+				clear: true
+			});
+			maingame.hud.setWidget('pts_sea', {
+				widget: 'label',
+				font:   'small',
+				value:  "0 points",
+				dx:     mp_x0,
+				dy:     mp_y0+6 + 12*tilesize,
+				clear: true
+			});
+			
+			
+			//`Temporary testing variables
+			c = gbox.getObject('cursor', 'b1_cursor');
+			cam = gbox.getCamera();
+        };
+        
+        
+        gbox.go();
+    }
+    function createBoard(board_id, params) {
+		var board = {
+            id:      board_id,
+            group:   'boards',
+            tileset: 'monad_tiles',
+			scale:   params.scale?params.scale:1,
+			map:	 params.map,
+            x: params.x ? params.x : board_x0,
+			y: params.y ? params.y : board_y0,
+			last_board_id: params.last_board_id?params.last_board_id:board_id,
+            next_board_id: params.next_board_id?params.next_board_id:board_id,
+            
+            initialize: function() {},
+            first: function() {},
+            blit: function() {
+                var the_canvas = getCanvas(this.id);
+				
+				gbox.blit(gbox.getBufferContext(), the_canvas,
+                 {dx: this.x, 
+                  dy: this.y,
+                  dw: the_canvas.width,
+                  dh: the_canvas.height,
+                  sourcecamera: true
+				  }
+                );
+            }
+        };
+        
+		// This ensures that the board has proper width/height variables 
+        help.finalizeTilemap(board);
+		
+        // Set up the board's HTML canvas
+        gbox.createCanvas(board_id+"_canvas", {w:board.w, h:board.h});
+		//`NOTE: After editting help.finalizeTilemap, I don't need to include the scale parameter in the above line.
+        
+		refreshBoard(board.id, board);
+        
+        return board;
+    }
+    function addCursor(board_id) {
+        gbox.addObject({
+            id:board_id+'_cursor',
+            group:'cursor',
+            board: getBoard(board_id), // `NOTE: Thankfully, the following is just a REFERENCE to the board object (rather than a static copy).
+			tileset:'monster_tiles',  //'cursor_tile',
+            x:0, y:0,
+			
+			// Animation parameters
+			anim_state: "normal",
+			anim_count: 0,
+			anim_delay: 1,
+			anim_skip: 1,
+			
+			// Cursor functions
+			move: function(direction) {
+				if (this.anim_state!="normal") return;
+				
+				switch (direction) {
+				case 'left':
+					this.x -= 1;
+					while (getNonBlankMonad(this.x, this.y)==blank) this.x -= 1; 
+					break;
+				case 'right':
+					this.x += 1;
+					while (getNonBlankMonad(this.x, this.y)==blank) this.x += 1;
+					break;
+				case 'up':
+					this.y -= 1;
+					while (getNonBlankMonad(this.x, this.y)==blank) this.y -= 1; 
+					break;
+				case 'down':
+					this.y += 1;
+					while (getNonBlankMonad(this.x, this.y)==blank) this.y += 1; 
+					break;
+				}
+			},
+            sizeup: function() {
+				this.board = getBoard(this.board.next_board_id);
+				
+				if (this.x + 2*this.board.scale > board_width) this.x -= (this.x+2*this.board.scale-board_width);
+				if (this.y + 2*this.board.scale > board_height) this.y -= (this.y+2*this.board.scale-board_height);
+				
+				display("You ate a stone!");
+			},
+			sizedown: function() {
+				this.board = getBoard(this.board.last_board_id);
+				display("You ate a sea!")
+			},
+			animate: function() {
+				if (this.anim_state=="normal") return;
+				
+				anim_count = (this.anim_count-this.anim_delay)/this.anim_skip;
+				
+				// So far, the only animation state is chomping
+				
+				if (this.anim_state=="chomping") switch (anim_count) {
+					//`TODO: store these in a array or hash
+					case 0: this.frame=1; break;
+					case 1: this.frame=2; break;
+					case 2: this.frame=3; this.eat(); break;
+					case 6: this.frame=2; break;
+					case 7: this.frame=1; break;
+					case 8: this.frame=0;
+					  this.anim_state="normal";
+					  return;
+				}
+				
+				this.anim_count += 1;
+			},
+			eat: function() {
+				var m = generateMonad(t, true);
+				placeMonadByPixel(this.board.next_board_id, this.x*tilesize, this.y*tilesize, m);
+				eraseTetrad(this.board.id, this.x, this.y);
+				scoreMonad(species_grps[species[m]], this.board.scale);
+				// Check for special monads
+				//if (t.indexOf(0)!=-1)  this.sizeup();
+				//if (t.indexOf(15)!=-1) this.sizedown();
+				this.freeze=false;
+			},
+			
+            initialize: function() {
+				//`NOTE: in toys.topview.initialize(this, {}), the variable
+				// this.frame gets set to 0. It is used in the blit function.
+				// I think it just means that this object uses tile #0 in its
+				// tilemap, but I don't know why it's called "frame"!
+                toys.topview.initialize(this, {});
+				
+				// Counter for keypressing
+				this.n = 0;
+            },
+            first: function() {
+				this.animate();
+				min_key_frames = 3;
+                //toys.topview.controlKeys(this, { left:'left', right:'right', up:'up', down:'down' });
+				if (gbox.keyIsHit('left') && this.x>0) {
+					this.move('left');
+					this.n=0;
+				}
+				if (gbox.keyIsHit('right') && this.x<this.board.w/tilesize-2*this.board.scale) {
+					this.move('right');
+					//this.x += 1;
+					this.n=0;
+				}
+				if (gbox.keyIsHit('up' ) && this.y>0) {
+					this.move('up');
+					this.n=0;
+				}
+                if (gbox.keyIsHit('down') && this.y<this.board.h/tilesize-2*this.board.scale) {
+					this.move('down');
+					this.n = 0;
+				}
+				if (gbox.keyIsPressed('left') && this.x>0) {
+					if (this.n>=min_key_frames) this.move('left'); //this.x -= 1;
+					else this.n++;
+				}
+                if (gbox.keyIsPressed('right') && this.x<this.board.w/tilesize-2*this.board.scale) {
+					if (this.n>=min_key_frames) this.move('right'); //this.x += 1;
+					else this.n++;
+				}
+                if (gbox.keyIsPressed('up') && this.y>0) {
+					if (this.n>=min_key_frames) this.move('up'); //this.y -= 1;
+					else this.n++;
+				}
+                if (gbox.keyIsPressed('down') && this.y<this.board.h/tilesize-2*this.board.scale) {
+					if (this.n>=min_key_frames) this.move('down'); //this.y += 1;
+					else this.n++;
+				}
+                if (gbox.keyIsHit('r')) {
+					placeRandomTetrad(this.board.id, this.x, this.y);
+				}
+				if (gbox.keyIsHit('plus')) {
+					this.sizeup();
+				}
+				if (gbox.keyIsHit('minus')) {
+					this.sizedown();
+				}
+				
+				// See if a tetrad can be eaten
+				if (gbox.keyIsHit('enter')) {
+					t = readTetrad(this.board.id, this.x, this.y, 'wrap');
+					if (t.indexOf(blank)==-1) {
+						// Start the chomping animation
+						this.anim_state = "chomping";
+						this.anim_count = 0;
+					}
+				}
+				
+            },
+            blit: function() {
+				pointCamera();
+				
+				// this variable is just for conciseness
+				var s = this.board.scale; 
+				
+                gbox.blitTile(gbox.getBufferContext(), { 
+                    tileset: this.tileset,
+                    tile: this.frame,
+					dx: this.board.x + this.x*tilesize - s*(1+cursor_x),
+					dy: this.board.y + this.y*tilesize - s*(1+cursor_y),
+                    fliph: this.fliph,
+					flipv: this.flipv,
+					scale_size: s,
+                    camera: this.camera,
+					alpha: 1.0
+                });
+            }
+        });
+    }
+	function addBackground() {
+        gbox.addObject({
+            id: 'background',
+            group: 'background',
+            initialize: function() {},
+            first:      function() {
+				board = getBoard('b1');
+				if (gbox.keyIsHit('space')) {
+					for (var y=0; y<board_height; y++) {
+					for (var x=0; x<board_width; x++) {
+						var t = readTetrad(board_id, x, y, 'wrap');
+						board.map[y][x] = generateMonad(t);
+					}}
+					refreshBoard('b1');
+				}
+				
+				// Load a new board
+				if (gbox.keyIsHit('n')) loadNewBoard(tut3, ['a']);
+			},
+            blit:       function() { clearBuffer(); }
+        });
+    }
+
+    </script>
+</html>
