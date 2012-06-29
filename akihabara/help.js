@@ -188,6 +188,7 @@ var help={
 	// Finalize a map definition, setting height and width in pixels etc.
 	// Args: (map)
 	// Outs: finalized map
+
 	finalizeTilemap:function(map) {
 		var ts=gbox._tiles[map.tileset];
 		map.h=map.map.length*ts.tileh;
@@ -517,7 +518,8 @@ var help={
 	akihabaraInit:function(data) {
 		if ((typeof data).toLowerCase() == "string") data={title:data};
 		var device=this.getDeviceConfig();
-		var footnotes=["MADE WITH AKIHABARA (C)2010 - GPL2/MIT","Project: www.kesiev.com/akihabara","Sources: github.com/kesiev/akihabara"];
+		//var footnotes=["MADE WITH AKIHABARA (C)2010 - GPL2/MIT","Project: www.kesiev.com/akihabara","Sources: github.com/kesiev/akihabara"];
+		var footnotes=["MADE WITH AKIHABARA","(C)2010 - GPL2/MIT","www.kesiev.com/akihabara","github.com/kesiev/akihabara"];
 		document.title=(data.title?data.title:"Akihabara");
 		if (data.splash) {
 			if (data.splash.footnotes) 

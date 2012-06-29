@@ -288,7 +288,10 @@ var gbox={
 		if (sy<0) { dy-=(dh/sh)*sy;sh+=sy; sy=0; }
 		if (sx+sw>img.width) { dw=(dw/sw)*(img.width-sx);sw=img.width-sx;}
 		if (sy+sh>img.height) { dh=(dh/sh)*(img.height-sy);sh=img.height-sy;}
-		try { if ((sh>0)&&(sw>0)&&(sx<img.width)&&(sy<img.height)) tox.drawImage(img, sx,sy,sw,sh,dx,dy,dw,dh); } catch(e){}
+		try { if ((sh>0)&&(sw>0)&&
+				  (sx<img.width)&&
+				  (sy<img.height)) 
+			tox.drawImage(img, sx,sy,sw,sh,dx,dy,dw,dh); } catch(e){}
 	},
 	_keydown:function(e){
 		if (e.preventDefault) e.preventDefault();
@@ -1018,6 +1021,7 @@ var gbox={
   * gbox.addObject(data);
   */    
 	addObject:function(data) {
+		//console.log(data)
 		// Extras
 		if (!data.id) {
 			data.id="obj-"+this._autoid;
@@ -1040,7 +1044,7 @@ var gbox={
   * @param {String} gid The group you're checking.
   * @returns {Boolean} True if the group contains no objects.
   */    
-	groupIsEmpty:function(gid) { for (var i in this._objects[gid]) return false; return true; },
+	groupIsEmpty:function(gid) {for (var i in this._objects[gid]) return false; return true; },
   
   /**
   * Creates a new canvas. By default, the width and height is the current gbox._screenw and gbox._screenh,
@@ -1194,7 +1198,8 @@ var gbox={
 		// Default stuff
 		this.addImage("_dbf","akihabara/debugfont.png");
 		if (this._splash.background) this.addImage("_splash",this._splash.background);
-		gbox.addFont({id:"_dbf",image:"_dbf",firstletter:" ",tileh:5,tilew:4,tilerow:16,gapx:0,gapy:0});
+		//gbox.addFont({id:"_dbf",image:"_dbf",firstletter:" ",tileh:5,tilew:4,tilerow:16,gapx:0,gapy:0});
+		gbox.addFont({id:"_dbf",image:"_dbf",firstletter:" ",tileh:8,tilew:8,tilerow:255,gapx:0,gapy:0});
 		if (!gbox._splash.minimalTime)
 			gbox._minimalexpired=2;
 		this._waitforloaded();
@@ -1221,6 +1226,8 @@ var gbox={
   * <li>dy {Integer}: y coordinate to draw the tile at</li>
   * <li>fliph {Integer}: horizontal flip, either 1 or -1</li>
   * <li>flipv {Integer}: vertical flip, either 1 or -1</li>
+  * <li>scale_size {Float}: the scale factor for the image, for both x and y directions</li>
+  * <li>scale_pos {Float}: the scale factor for the image position, for both x and y directions</li>
   * <li>alpha {Float}: alpha value (0 is transparent, 1 is opaque)</li></ul>
   * @example
   * // from capman, draws an current object's tile, called from inside its blit function
@@ -1233,8 +1240,17 @@ var gbox={
 		this._implicitsargs(data);
 		tox.save();
 		tox.globalAlpha=(data.alpha?data.alpha:1);
-		tox.translate((data.fliph?ts.tilew:0), (data.flipv?ts.tileh:0)); tox.scale((data.fliph?-1:1), (data.flipv?-1:1));
-		this._safedrawimage(tox,img, ts.gapx+(ts.tilew*(data.tile%ts.tilerow)),ts.gapy+(ts.tileh*Math.floor(data.tile/ts.tilerow)),(data.w==null?ts.tilew:data.w),(data.h==null?ts.tileh:data.h),data.dx*(data.fliph?-1:1),data.dy*(data.flipv?-1:1),(data.w?data.w:ts.tilew),(data.h?data.h:ts.tileh));
+		tox.translate((data.fliph?ts.tilew:0), (data.flipv?ts.tileh:0));
+		tox.scale((data.fliph?-1:1), (data.flipv?-1:1));
+		this._safedrawimage(tox,img, 
+			ts.gapx+(ts.tilew*(data.tile%ts.tilerow)),
+			ts.gapy+(ts.tileh*Math.floor(data.tile/ts.tilerow)),
+			(data.w==null?ts.tilew:data.w),
+			(data.h==null?ts.tileh:data.h),
+			data.dx*(data.fliph?-1:1)*(data.scale_pos?data.scale_pos:1),
+			data.dy*(data.flipv?-1:1)*(data.scale_pos?data.scale_pos:1),
+			(data.w?data.w:ts.tilew)*(data.scale_size?data.scale_size:1),
+			(data.h?data.h:ts.tileh)*(data.scale_size?data.scale_size:1));
 		tox.restore();
 	},
 
@@ -1278,6 +1294,7 @@ var gbox={
   * @param {Object} tox The canvas context to be drawn on.
   * @param {Object} data An object containing a set of tilemap data, including:
   * <ul><li>tileset {String}: (required) the id of the tileset the tilemap is based on</li>
+  * <li>scale {Float}: the scale factor, for both x and y directions</li>
   * <li>map {Array}: an array whose x and y coord represent the tilemap coordinates, containing integers that correspond to the index of a given tile (or null for no tile)</li></ul>
   */
 	blitTilemap:function(tox,data) {
@@ -1285,7 +1302,17 @@ var gbox={
 		var ts=this._tiles[data.tileset];
 		for (var y=0;y<data.map.length;y++)
 			for (var x=0;x<data.map[y].length;x++)
-				if (data.map[y][x]!=null) this.blitTile(tox,{tileset:data.tileset,tile:data.map[y][x],dx:x*ts.tilew,dy:y*ts.tilew});
+				if (data.map[y][x]!=null) this.blitTile(tox,
+				{
+				tileset:data.tileset,
+				tile:data.map[y][x],
+				dx:x*ts.tilew,
+				dy:y*ts.tilew,
+				//`??? Is that a bug in the dy line? Shouldn't it be tileh?
+				scale_size:(data.scale?data.scale:1),
+				scale_tile:(data.scale?data.scale:1),
+				scale_pos:1,
+				});
 	},
   
   
