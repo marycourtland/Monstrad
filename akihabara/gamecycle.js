@@ -145,7 +145,15 @@ var gamecycle={
 				toys.resetToy(this,"difficulty");
 			} else {
 				gbox.blitFade(gbox.getBufferContext(),{alpha:0.5});
-				if (toys.ui.menu(this,"difficulty",{audiooption:"default-menu-option",audioconfirm:"default-menu-confirm",font:"small",keys:{up:"up",down:"down",ok:"a",cancel:"b"},selector:">",items:["EASY","NORMAL","HARD"],x:10,y:10})) {
+				
+				if (toys.ui.menu(this,"difficulty",
+				{audiooption:"default-menu-option",
+				audioconfirm:"default-menu-confirm",
+				font:"small",
+				keys:{up:"up",down:"down",ok:"a",cancel:"b"},
+				selector:">",
+				items:["EASY","NORMAL","HARD"],x:10,y:10}
+				)) {
 					if (toys.getToyValue(this,"difficulty","ok") == -1) return -1;
 					else {
 						this.difficulty=toys.getToyValue(this,"difficulty","selected");
