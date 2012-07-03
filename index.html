@@ -23,7 +23,7 @@
     <style>BODY { -webkit-user-select: none; margin: 0px }</style>
 	<meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;" />
   </head>
-  <body></body>
+  <body>Test</body>
   
   <script id=utility>
 	// These are utility functions and other detritus.
@@ -1053,7 +1053,7 @@
 					// The player can always sizedown.
 					this.sizedown();
 				}
-				if (gbox.keyIsHit('space')) {
+				if ((gbox.keyIsHit("space") || gbox.keyIsHit("b"))) {
 					// See if a tetrad can be eaten on the smaller board
 					if (this.board.last_board_id != this.board.id) {  
 						last_board = getBoard(this.board.last_board_id);
@@ -1149,7 +1149,7 @@
 		params.text = "(Move the monster with the arrow keys.)"
 		params.dy=360; params.blit();
 		
-		return gbox.keyIsHit("enter");
+		return (gbox.keyIsHit("enter") || gbox.keyIsHit("c"));
 	}
 	function instr_screen2(params) {
 		clearBuffer('black');
@@ -1161,7 +1161,7 @@
 		//params.text = "Move the monster around with the arrow keys."
 		//params.dy=400; params.blit();
 		
-		return gbox.keyIsHit("enter");
+		return (gbox.keyIsHit("enter") || gbox.keyIsHit("c"));
 	}
   </script>
   
@@ -1200,7 +1200,7 @@
 				gbox.blitRect(gbox.getBufferContext(), {x:0, y:y1, w:640, h:5+160});
 			}
 			else {
-				return true; //gbox.keyIsHit("enter");
+				return true; //(gbox.keyIsHit("enter") || gbox.keyIsHit("c"));
 			}
 			
         };
@@ -1293,7 +1293,7 @@
 				case 302: // Player wants to end game
 					//clearBuffer();
 					txt = gametext().center();
-					txt.dy = 20;
+					txt.dy = 420;
 					txt.text = "Are you sure you want to end this game?"
 					txt.blit();
 					txt.text = "(Press Y or N to continue)";
