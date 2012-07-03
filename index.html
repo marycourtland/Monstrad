@@ -68,7 +68,7 @@
 	}
 	function wait(frames, reset) {
 		if (reset) toys.resetToy(this, "timer");
-		return toys.timer.after(this, "timer", frames);
+		return toys.after(this, "timer", frames);
 	}
 	function blitDebug(txt) {
 		gbox.blitText(gbox.getBufferContext(), {font:gbox._dbf, text:txt, dy:0, dx:0});
@@ -161,7 +161,7 @@
 	
 	// Position of the board's top-left corner
 	var board_x0 = 40;
-	var board_y0 = 100;
+	var board_y0 = 70;
 	
 	// Position of the monad panel (top-left corner)
 	var mp_x0 = 440;
@@ -307,7 +307,15 @@
 	tut2 = [[1, 2, 3, 3], [4, 2, 5, 3]];
 	
 	
-	tut3 = [[1, 2, 3, 3], [2, 1, 3, 3], ['a', 6, 8, 8], [7, 7, 9, 8]];
+	tutorial = [['b', ' ', 'g', ' ', 'k', ' ', 'a', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				['l', ' ', 'n', ' ', 'e', ' ', 'i', ' '],
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+				['f', ' ', 'h', ' ', 'm', ' ', 'o', ' '], 
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '], 
+				['j', ' ', 'c', ' ', 'd', ' ', 'i', ' '], 
+				[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '], ];
+	
 	
   </script>
   
@@ -336,8 +344,10 @@
 	  if ((y - cam.y) > (H - buffer_y)) gbox.setCameraY(cam.y + (y - cam.y) - (H - buffer_y), board_area);
 	}
 	function display(text) {
-		maingame.hud.setValue('message', 'value', text);
-		maingame.hud.redraw();
+		try {
+			maingame.hud.setValue('message', 'value', text);
+			maingame.hud.redraw();
+		} catch (error) {}
 	}
 	function setBoardSize(w, h) {
 		board_width=w;
@@ -445,7 +455,7 @@
 		}
 		return species.indexOf(new_monad.join(""));
 	}
-	function scoreMonad(monad, multiplier) {
+	function scoreMonad(monad, multiplier) {// `OLD
 		score += point_values[monad];
 		maingame.hud.setValue('score', 'value', "Score: "+score.toString());
 		
@@ -553,7 +563,6 @@
 				return Math.floor(integer/this.scale)*this.scale
 			},
 			fillWithBlanks: function() {
-				//`TODO
 				for (i=0; i<board_width/this.scale; i++) for (j=0; j<board_width/this.scale; j++) {
 					this.placeMonad(i*this.scale, j*this.scale, blank);
 				}
@@ -625,8 +634,22 @@
 				/* Returns true if the tile at x, y is the upper-left of a tetrad (possibly with blanks).
 				   (Unlike getTetrad, no wrapping option is implemented.)
 				*/
-				//console.log("*** xy is", x, y);
 				for (var i=0; i<this.scale*2; i++) for (var j=0; j<this.scale*2; j++) {
+					m_ij = this.getMonad(x+i, y+j);
+					if (m_ij==null) return false;
+				}
+				return true;
+				/*var m00 = this.getMonad(x,            y);
+				var m10 = this.getMonad(x+this.scale, y);
+				var m01 = this.getMonad(x,            y+this.scale);
+				var m11 = this.getMonad(x+this.scale, y+this.scale);
+				return (m00!=null  && m10!=null  && m01!=null  && m11!=null)
+				*/
+			},
+			isCompleteTetradWithBlanks: function(x, y) {
+				/* Returns true if a cursor on this board can move to x, y without running into a null tile.
+				*/
+				for (var i=0; i<this.scale; i++) for (var j=0; j<this.scale; j++) {
 					m_ij = this.getMonad(x+i, y+j);
 					if (m_ij==null) return false;
 				}
@@ -649,22 +672,7 @@
 						this.isCompleteTetrad(x,   y))
 				*/
 			},
-			isCompleteTetradWithBlanks: function(x, y) {
-				/* Returns true if a cursor on this board can move to x, y without running into a null tile.
-				*/
-				//console.log("*** xy is", x, y);
-				for (var i=0; i<this.scale; i++) for (var j=0; j<this.scale; j++) {
-					m_ij = this.getMonad(x+i, y+j);
-					if (m_ij==null) return false;
-				}
-				return true;
-				/*var m00 = this.getMonad(x,            y);
-				var m10 = this.getMonad(x+this.scale, y);
-				var m01 = this.getMonad(x,            y+this.scale);
-				var m11 = this.getMonad(x+this.scale, y+this.scale);
-				return (m00!=null  && m10!=null  && m01!=null  && m11!=null)
-				*/
-			},
+
 			eraseMonad: function(x, y) {
 				/* Erases the monad at x, y. (Makes it null.) */
 				if (outOfBounds(x, y)) return;
@@ -745,7 +753,11 @@
 				this.placeMonad(xy2.x, xy2.y, m1);
 			},
 			
-            initialize: function() {},
+            initialize: function() {
+				for (i=0; i<board_width/this.scale; i++) for (j=0; j<board_width/this.scale; j++) {
+					if (typeof this.getMonad(i,j)=="number") this.placeMonad(i, j, this.getMonad(i, j));
+				}
+			},
             first: function() {},
             blit: function() {
                 var the_canvas = getCanvas(this.id);
@@ -836,7 +848,7 @@
 			},
 			move: function(direction, animation_exception) {
 				if (this.anim_state!="normal" && !animation_exception) return;
-				var next_board = getBoard(this.board.next_board_id);
+				//var next_board = getBoard(this.board.next_board_id);
 				dcoords = dir_coords[direction]
 				
 				var new_x = this.x+dcoords.x;
@@ -888,7 +900,8 @@
 				switch (this.m) {
 					// Stone monad: level up
 					case 0:
-						player.raiseLevel(); 
+						try { player.raiseLevel(); }
+						catch(error) {}
 						display("You have eaten a stone monad - time to grow bigger!");
 						this.sizeup();
 						break;
@@ -1080,10 +1093,8 @@
             },
             blit: function(pc) {
 				//pointCamera();
-				
 				// this variable is just for conciseness
 				var s = this.board.scale/2; 
-				
                 gbox.blitTile(gbox.getBufferContext(), { 
                     tileset: this.tileset,
                     tile: this.frame,
@@ -1116,7 +1127,7 @@
 				}
 				*/
 				// Load a new board (`OLD)
-				// if (gbox.keyIsHit('n')) loadNewBoard(tut3, ['a']);
+				// if (gbox.keyIsHit('n')) loadNewBoard(tutorial, ['a']);
 			},
             blit:       function() {
 				clearBuffer();
@@ -1137,24 +1148,109 @@
   <script id=instruction_screens>
 	function instr_screen1(params) {
 		clearBuffer('black');
-		params.text = "The monster finds itself confined to a board filled with monads.";
-		params.dy=60; params.blit();
+		params.center();
+		params.dx=0;
+		params.dy=60;
+		params.ddy=20;
+		
+		params.text = "THE ARROW KEYS";
+		params.blit();
+		params.text = "The monster is confined to a board filled with monads.";
+		params.blit();
+		params.text="The arrow keys will help it navigate around.";
+		params.blit();
+		params.text="";
+		params.blit();
+		params.blit();
+		
+		params.text="THE SPACE BAR";
+		params.blit();
+		params.text = "The monster will eat monads when the space bar is pressed.";
+		params.blit();
+		params.text="Try eating many monads to see the effects of each color.";
+		params.blit();
+		params.text="";
+		params.blit();
+		params.blit();
+		
+		
+		
+		params.text="GROWING";
+		params.blit();
+		params.text = "One of the monads is filled with nutritious food.";
+		params.blit();
+		params.text="Eating it will allow the monster to grow larger."
+		params.blit();
+		params.text="";
+		params.blit();
+		
 		
 		// `TODO: Blit an image of the monster on a board (or a real board or something)
+		/*
 		tutorial_board.first();
 		tutorial_cursor.first();
 		tutorial_board.blit();
 		tutorial_cursor.blit();
-		
-		params.text = "(Move the monster with the arrow keys.)"
-		params.dy=360; params.blit();
+		*/
 		
 		return (gbox.keyIsHit("enter") || gbox.keyIsHit("c"));
 	}
 	function instr_screen2(params) {
 		clearBuffer('black');
-		params.text = "The monster can eat groups of four monads, turning them into a new monad.";
-		params.dy=60; params.blit();
+		params.center();
+		params.dx=0;
+		params.dy=80;
+		params.ddy=20;
+		
+		params.text="THE PLUS AND MINUS KEYS";
+		params.blit();
+		params.text="When the monster has grown to a certain size, it may";
+		params.blit();
+		params.text="shrink to any smaller size, and then enlarge itself again.";
+		params.blit();
+		params.text="Use the plus and minus keys to do this.";
+		params.blit();
+		params.text="";
+		params.blit();
+		params.blit();
+		params.blit();
+		
+		params.text="MAKING NEW MONADS";
+		params.blit();
+		params.text="If the monster eats four monads at once, it will create a new";
+		params.blit();
+		params.text="monad. None of the original monads will have other effects.";
+		params.blit();
+		params.text="";
+		params.blit();
+		params.blit();
+		
+		
+		// `TODO: Blit an image of the monster on a board (or a real board or something)
+		
+		//params.text = "Move the monster around with the arrow keys."
+		//params.dy=400; params.blit();
+		
+		return (gbox.keyIsHit("enter") || gbox.keyIsHit("c"));
+	}
+	function instr_screen3(params) {
+		clearBuffer('black');
+		params.center();
+		params.dx=0;
+		params.dy=120;
+		params.ddy=60;
+		params.font="large";
+		
+		
+		params.text="YOUR MISSION:";
+		params.blit();
+		params.text = "Help the monster grow";
+		params.ddy=30;
+		params.blit();
+		params.text="as large as possible,";
+		params.blit();
+		params.text="thus escaping the board."
+		params.blit();
 		
 		// `TODO: Blit an image of the monster on a board (or a real board or something)
 		
@@ -1220,7 +1316,7 @@
 				}
 			}
 			// This is to cover up the menu cursor's old position
-			gbox.blitRect(gbox.getBufferContext(), {x:menu_x0, y:menu_y0+40, w:50, h:100});
+			gbox.blitRect(gbox.getBufferContext(), {x:menu_x0, y:menu_y0+20, w:50, h:100});
 			
 			
 			
@@ -1231,9 +1327,6 @@
 			menu_params.font="large"; 
 			
 			menu_params.text="Press enter to choose an option:";
-			
-			if (gbox.keyIsPressed("a")) menu_params.text+=" ('a' was just pressed)";
-			if (gbox.keyIsPressed("up")) menu_params.text+=" ('up' was just pressed)";
 			menu_params.blit();
 			
 			// Add some parameters so that menu_params can be passed to toys.ui.menu
@@ -1274,11 +1367,14 @@
 		maingame.gameEndingIntroAnimation = function(reset) {
 			clearBuffer();
 			var txt = gametext().center().middle();
+			txt.ddy=60;
 			txt.font="large";
 			txt.text="Congratulations!";
 			txt.blit();
-			
-			return wait(50, reset);
+			txt.font="small";
+			txt.text="(Press enter to continue)"
+			txt.blit();
+			return gbox.keyIsHit("enter") || gbox.keyIsHit("c");
 			}
 		// 700: Game over
 		maingame.gameoverIntroAnimation = function(reset) {
@@ -1293,7 +1389,7 @@
 				case 302: // Player wants to end game
 					//clearBuffer();
 					txt = gametext().center();
-					txt.dy = 420;
+					txt.dy = 440;
 					txt.text = "Are you sure you want to end this game?"
 					txt.blit();
 					txt.text = "(Press Y or N to continue)";
@@ -1314,22 +1410,31 @@
 		}
 		
 		maingame.showInstructions = function(reset) {
-			instruction_screens=[instr_screen1, instr_screen2];
+			instruction_screens=[instr_screen1, instr_screen2, instr_screen3];
 			
 			if (reset) {
+				text_params = gametext().center();
 				this.instr_state=0;
 				// Create a board/cursor for the tutorial
-				tutorial_board = createBoard('tutorial', {scale:1, map:help.asciiArtToMap(evalRandomMap(tut3), letter_translation)});
+				tutorial_board = createBoard('tutorial', {scale:2, map:help.asciiArtToMap(evalRandomMap(tutorial), letter_translation)});
+				tutorial_board.initialize();
 				tutorial_cursor = Monster(tutorial_board, 'tutorial_cursor');
+				tutorial_cursor.initialize();
 			}
-			if (this.instr_state>=instruction_screens.length) { console.log("Returning true"); return true; }
+			if (this.instr_state>=instruction_screens.length) { clearBuffer(); return true; }
 			
-			text_params = {font:"small", dx:30, dy:0, blit: function() {gbox.blitText(gbox.getBufferContext(), this)}};
+			
+			
 			if (instruction_screens[this.instr_state](text_params)) {
 				this.instr_state+=1;
 			}
-			text_params.font="small"; text_params.dx=400; text_params.dy=420;
-			text_params.text="Press enter to continue -->"; text_params.blit();
+			text_params.font="small";
+			text_params.left();
+			text_params.dx=400;
+			text_params.dy=420;
+			text_params.text="Press enter to continue -->"; 
+			text_params.blit();
+			//text_params.text="Press enter to go back."; text_params.blit();
 			return false;
 		}
 		
@@ -1437,9 +1542,9 @@
         gbox.addImage('monster', 'images/monster_animation.png');
         
         // FONTS
-        gbox.addFont({ id: 'small', image: 'font_small', firstletter:' ', tileh:8, tilew:8, tilerow:255, gapx:0, gapy:0 });
+        gbox.addFont({ id: 'small', image: 'font_small', firstletter:' ', tileh:15, tilew:8, tilerow:255, gapx:0, gapy:0 });
         //gbox.addFont({ id: 'small', image: 'font_small', firstletter:' ', tileh:24, tilew:11, tilerow:255, gapx:0, gapy:0 });
-        gbox.addFont({ id: 'large', image: 'font_large', firstletter:' ', tileh:16, tilew:16, tilerow:510, gapx:0, gapy:0 });
+        gbox.addFont({ id: 'large', image: 'font_large', firstletter:' ', tileh:20, tilew:10, tilerow:255, gapx:0, gapy:0 });
         
         // MONAD TILESETS
         gbox.addTiles({
