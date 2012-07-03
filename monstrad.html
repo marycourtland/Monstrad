@@ -34,6 +34,7 @@
 	// These are utility functions and other detritus.
     // They're necessary for the game, but completely separable (in
     // the sense that they could be re-used for other Akihabara games).
+
 	String.prototype.lpad = function(padString, length) {
 		var str = this;
 		while (str.length < length)
@@ -46,19 +47,22 @@
 			str = str + padString;
 		return str;
 	}
-    function xy(coord_x, coord_y) {
+    	
+	function xy(coord_x, coord_y) {
+		/* Returns a simple 2d coordinate object */
 		return {x:coord_x, y:coord_y}
 	}
 	function wh(width, height) {
+		/* Returns a simple 2d area object */
 		return {w:width, h:height}
 	}
 	function randomItem(array) {
         return array[help.random(0, array.length)];
     }
-    function clearBuffer() {
+    function clearBuffer(color) {
         // Clears the game screen.
-		
-        gbox.blitFade(gbox.getBufferContext(), {color: bg_color, alpha: 1});
+		if (color==null) color=bg_color;
+        gbox.blitFade(gbox.getBufferContext(), {color: color, alpha: 1});
     }
     function disableIntro(maingamevar) {
         // Disable the title/intro routines
@@ -67,10 +71,60 @@
         maingamevar.gameIntroAnimation = function(){ return true; };
 		maingamevar.pressStartIntroAnimation = function(reset) {return true};
 	}
+	function wait(frames, reset) {
+		if (reset) toys.resetToy(this, "timer");
+		return toys.timer.after(this, "timer", frames);
+	}
 	function blitDebug(txt) {
 		gbox.blitText(gbox.getBufferContext(), {font:gbox._dbf, text:txt, dy:0, dx:0});
 	}
 	
+	/* This returns an object with really useful parameters for displaying text.
+	Also, it provides some shortcut functions for setting those parameters.
+	Other functions:
+		Use gtext.blit() to display the text.
+		Use gtext.reset() to reset the parameters to defaults.
+		If you want the text to automatically shift to a new position each time it's blitted (e.g. to a new line),
+		  set gtext.ddy
+		Set gtext.ddx and gtext.ddy to specify how much the text should shift each time it's displayed.
+			(Default is to shift it to a new line - i.e. ddy=font.height)
+	*/
+	function gametext() {
+		obj = {
+			blit: function() { gbox.blitText(this.context, this); this._nextpos(); return this},
+			reset: function() {
+				this.context = gbox.getBufferContext();
+				this.text="";
+				this.font="small";
+				this.dx=0; this.dy=0;
+				this.ddx = 0;
+				this.ddy = 'new_line';
+				this.top(); this.left();
+				return this;
+			},
+			
+			// Alignment functions - shortcuts for setting alignment parameters
+			left: function()   {this._halign(false); this.halign=null; return this;},
+			center: function() {this._halign(true); this.halign=gbox.ALIGN_CENTER; return this;},
+			right: function()  {this._halign(true); this.halign=gbox.ALIGN_RIGHT; return this;},
+			top: function()    {this._valign(false); this.valign=null; return this;},
+			middle: function() {this._valign(true); this.valign=gbox.ALIGN_MIDDLE; return this;},
+			bottom: function() {this._valign(true); this.valign=gbox.ALIGN_BOTTOM; return this;},
+			
+			// Internal vars, methods
+			_halign: function(box) {this.dx=0; this.dw=box?gbox.getScreenW():null;},
+			_valign: function(box) {this.dy=0; this.dh=box?gbox.getScreenH():null;},
+			_nextpos: function() {
+				this.dx += this.ddx;
+				if (this.ddy=='new_line') this.dy += gbox.getFont(this.font).tileh*1.8;
+				else this.dy+=this.ddy;
+			},
+		};
+		obj.reset();
+		return obj
+	};
+	
+	// Extended keyboard mappings
 	gbox._keymap.enter = 13;
 	gbox._keymap.shift = 16;
 	gbox._keymap.tab = 9;
@@ -78,9 +132,11 @@
 	gbox._keymap.plus = 187;
 	gbox._keymap.minus = 189;
 	gbox._keymap.backspace = 8;
+	gbox._keymap.esc = 27;
 	gbox._keymap.n = 78;
 	gbox._keymap.r = 82;
 	gbox._keymap.s = 83;
+	gbox._keymap.y = 89;
     gbox._keymap.one = 49;
     gbox._keymap.two = 50;
     gbox._keymap.three = 51;
@@ -88,15 +144,16 @@
     gbox._keymap.five = 53;
 	letter_translation = [[null, ' '], [0, 'a'], [1, 'b'], [2, 'c'], [3, 'd'], [4, 'e'], [5, 'f'], [6, 'g'], [7, 'h'], [8, 'i'], [9, 'j'], [10, 'k'], [11, 'l'], [12, 'm'], [13, 'n'], [14, 'o'], [15, 'p'], [16, 'q'], [17, 'r'], [18, 's'], [19, 't'], [20, 'u'], [21, 'v'], [22, 'w'], [23, 'x'], [24, 'y'], [25, 'z']]
   </script>
-  
+
   <script id=game_vars>
     // GLOBAL GAME CONSTANTS AND VARIABLES
     var maingame;
-	var bg_color = "rgb(0,0,20)"
-	
+	//var bg_color = "rgb(0,0,20)"
+	var bg_color="black";
 	var goal_level = 4;
-	
+	var game_modes = ['large_board', 'small_board', 'instructions'];
 	var board_layers;
+	var txt;
 	
 	// Size of the smallest monad (pixels)
     var tilesize = 20;
@@ -114,18 +171,21 @@
 	var mp_x0 = 440;
 	var mp_y0 = board_y0 + 1.5*tilesize;
 	
-	// Position of game title
+	// Position of the message text
+	var message_x0 = board_x0;
+	var message_y0 = 20;
+	
+	// Position of game title - `OLD
 	var title_x0 = board_x0;
 	var title_y0 = 20;
 	
-	// Position of the message text
-	var message_x0 = title_x0 + 100;
-	var message_y0 = title_y0;
-	
-	// Position of the player score label
+	// Position of the player score label - `OLD
 	var score_x0 = mp_x0;
 	var score_y0 = title_y0;
 	
+	// Position of the menu
+	var menu_x0 = 100
+	var menu_y0 = 320
 	
 	// Monster cursor image data
 	var cursor_width = 48;
@@ -257,7 +317,7 @@
   
   <script id=game_helpers>
     // GAME-RELATED HELPER FUNCTIONS AND SHORTCUTS
-	function logMap(board) { //`OLD
+	function printMap(board) { //`OLD
 		console.log("Board", board.id, "is:");
 		console.log('  0    1    2    3    4    5    6    7    8    9    10   11   12   13   14   15  ');
 		console.log('-----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+-----');
@@ -283,8 +343,14 @@
 		maingame.hud.setValue('message', 'value', text);
 		maingame.hud.redraw();
 	}
+	function setBoardSize(w, h) {
+		board_width=w;
+		board_height=h;
+		board_area = wh(w, h);
+		//board_x0 = (gbox.getScreenW()-board_width*tilesize)/2;
+	}
 	function outOfBounds(x, y) {
-		return (x<0 || y<0 || x>board_width || y>board_height)
+		return (x<0 || y<0 || x>=board_width || y>=board_height)
 	}
 	function makeNullMap(w, h) {
         // Lists of position indices for the map array
@@ -464,270 +530,19 @@
 		var coords = mstring.split("_");
 		return xy(parseInt(coords[1]), parseInt(coords[2]));
 	}
-		
-		
+
   </script>
 
-  <script id=game_methods>  
-    // MAIN GAME METHODS
-    window.addEventListener('load', loadResources, false);
-    function main() {        
-        // Specify the object groups, in a certain order
-        gbox.setGroups(['background', 'boards', 'cursor', 'game']); 
-
-        // Create the maingame; specify the title/intro routines
-        maingame = gamecycle.createMaingame('game', 'game');
-        
-		// GAMECYCLE METHODS
-		
-		// 100, 101, 102: Title sequence animation
-		maingame.gameTitleIntroAnimation = function(reset) {
-			clearBuffer();
-			gbox.blitText(gbox.getBufferContext(),{
-				font:"large",
-				text:"MONSTRAD",
-				//valign:gbox.ALIGN_MIDDLE,
-				halign:gbox.ALIGN_CENTER,
-				dx:0,dy:80,
-				dw:gbox.getScreenW()});
-		}
-		
-		// 100: After staring at the title a bit, the player presses start
-		maingame.pressStartIntroAnimation = function(reset) {
-			params = {font:"small", halign:gbox.ALIGN_CENTER, dx:0, dy:0, dw:gbox.getScreenW(), blit: function() {gbox.blitText(gbox.getBufferContext(), params)}
-			};
-			
-			params.dy=170;
-			params.text="Your mission: to find and build the largest stone monad.";
-			params.blit();
-			
-			params.dy=200;
-			params.text="Move around the landscape of monads with the arrow keys."
-			params.blit();
-			
-			params.dy=230;
-			params.text="Build groups of four monads by pressing enter.";
-			params.blit();
-			
-			params.dy=260;
-			params.text="Take care when building stone or water monads.";
-			params.blit();
-			
-			params.dy=320;
-			params.font="large";
-			params.text="Hit enter to continue. Good luck!";
-			params.blit();
-			
-			return gbox.keyIsHit("enter");
-        };
-		
-		// 101: Game menu
-		// **** A nested menu for practice levels? Sort of?
-		// **** Call this.goToLevel(lvl) instead of returning true (??)
-		// **** You might want to just skip to state 401.
-		maingame.gameMenu = function(reset) {
-			//clearBuffer();
-			
-			// `TODO: Blit some text saying "Which level/landscape would you like to tackle?"
-			
-			menu_params = {
-				font:"large",
-				keys:{up:"up",down:"down",ok:"enter",cancel:"backspace"},
-				selector:">",
-				x:200, y:200,
-				items:["Tutorial","Practice","Real World"],
-			};
-			// Specifying a selected parameter (e.g. selected:"Practice") I think will set which level is initially selected
-			
-			// `TODO (optional): Blit a graphical menu for the player to choose which tutorial to play
-			
-			if (toys.ui.menu(this, "difficulty", menu_params)) {
-				if (toys.getToyValue(this, "difficulty", "ok") == -1) return -1;
-				else {
-					this.difficulty=toys.getToyValue(this, "difficulty", "selected");
-					return true;
-				}
-			}
-		}
-        
-		// 200: Introduction animation
-		maingame.gameIntroAnimation = function(reset){
-			clearBuffer();
-		};
-		
-		// 400: Finish a level
-		maingame.endlevelIntroAnimation = function(reset) { return true; }
-		
-		// 401: Start a level
-		maingame.levelIntroAnimation = function(reset) { return true; }
-		
-		// 801: End of game ("You made the huge stone monad!")
-		maingame.gameEndingIntroAnimation = function(reset) { return true; }
-		
-		// 700: Game over ("Yay!")
-		maingame.gameoverIntroAnimation = function(reset) { return true; }
-		
-		// 301: Normal gameplay
-		maingame.gameEvents = function(reset) { return true; }
-		
-		
-		disableIntro(maingame); // Disable stuff for now
-		
-		// GAME INITIALIZATION
-		
-		// Initialize boards.
-		board_layers = [
-			createBoard('b1', {
-				next_board_id: 'b2',
-				map: makeNullMap(board_width, board_height)
-				//map: help.asciiArtToMap(initial_board, letter_translation)
-			}),
-			createBoard('b2', {
-				scale: 2,
-				last_board_id: 'b1',
-				next_board_id: 'b3',
-				map: makeBlankMap(board_width, board_height)
-			}),
-			createBoard('b3', {
-				scale: 4,
-				last_board_id: 'b2',
-				next_board_id: 'b4',
-				map:   makeBlankMap(board_width, board_height)
-			}),
-			createBoard('b4', {
-				scale: 8,
-				last_board_id: 'b3',
-				next_board_id: 'b4',
-				map:   makeBlankMap(board_width, board_height)
-			})
-		]
-		
-		// Monad panel
-		mp = createBoard('monad_panel', {
-			x: mp_x0+90,
-			y: mp_y0,
-			map: help.asciiArtToMap(['a   ', '    ', 'h   ', '    ', 'fg  ', '    ', 'dceb', '    ', 'jkli', '    ', 'mn  ', '    ', 'o   '], letter_translation)
-		});
-		
-        maingame.initializeGame = function() {
-            gbox.addObject(background());
-			
-			// Player object - contains info like the player's level
-			gbox.addObject(player());
-			
-			// Boards and monster cursor
-			for (i in board_layers) gbox.addObject(board_layers[i]);
-			
-			board_layers[1].fillRandomly();
-			gbox.addObject(monster('b2'));
-			
-			//`TODO:
-			//board_layers[0].fillWithBlanks();
-			//...etc
-            
-			// HUD
-			maingame.hud.setWidget('game_title', {
-				widget: 'label',
-				font:   'small',
-				value:  "TETRAD",
-				dx:     title_x0,
-				dy:     title_y0,
-				clear: true
-			});
-			maingame.hud.setWidget('score', {
-				widget: 'label',
-				font:   'small',
-				value:  "SCORE: 0",
-				dx:     score_x0,
-				dy:     score_y0,
-				clear: true
-			});
-			maingame.hud.setWidget('message', {
-				widget: 'label',
-				font:   'small',
-				value:  "",
-				dx:     message_x0,
-				dy:     message_y0,
-				clear: true
-			});
-			gbox.addObject(mp);// `TODO: Instead of manually putting the points text here, use the species_grps_points var
-			maingame.hud.setWidget('pts_stone', {
-				widget: 'label',
-				font:   'small',
-				value:  "20 points",
-				dx:     mp_x0,
-				dy:     mp_y0+6,
-				clear: true
-			});
-			maingame.hud.setWidget('pts_cross', {
-				widget: 'label',
-				font:   'small',
-				value:  "15 points",
-				dx:     mp_x0,
-				dy:     mp_y0+6 + 2*tilesize,
-				clear: true
-			});
-			maingame.hud.setWidget('pts_road', {
-				widget: 'label',
-				font:   'small',
-				value:  "10 points",
-				dx:     mp_x0,
-				dy:     mp_y0+6 + 4*tilesize,
-				clear: true
-			});
-			maingame.hud.setWidget('pts_satellite', {
-				widget: 'label',
-				font:   'small',
-				value:  "5 points",
-				dx:     mp_x0,
-				dy:     mp_y0+6 + 6*tilesize,
-				clear: true
-			});
-			maingame.hud.setWidget('pts_coast', {
-				widget: 'label',
-				font:   'small',
-				value:  "1 point",
-				dx:     mp_x0,
-				dy:     mp_y0+6 + 8*tilesize,
-				clear: true
-			});
-			maingame.hud.setWidget('pts_border', {
-				widget: 'label',
-				font:   'small',
-				value:  "1 point",
-				dx:     mp_x0,
-				dy:     mp_y0+6 + 10*tilesize,
-				clear: true
-			});
-			maingame.hud.setWidget('pts_water', {
-				widget: 'label',
-				font:   'small',
-				value:  "0 points",
-				dx:     mp_x0,
-				dy:     mp_y0+6 + 12*tilesize,
-				clear: true
-			});
-			
-			//`Temporary testing variables
-			c = gbox.getObject('cursor', 'monster');
-			cam = gbox.getCamera();
-			b1 = board_layers[0];
-			b2 = board_layers[1];
-			b3 = board_layers[2];
-			b4 = board_layers[3];
-			p = gbox.getObject('game', 'player');
-        };
-        
-        gbox.go();
-    }
-    function createBoard(board_id, params) {
+  <script id=game_objects> 	
+	function createBoard(board_id, params) {
 		var board = {
             id:      board_id,
             group:   'boards',
             tileset: 'monad_tiles',
-			scale:   params.scale?params.scale:1,
-			map:	 params.map,
-            x: params.x ? params.x : board_x0,
+			scale:   params.scale? params.scale : 1,
+			map:	 params.map? params.map : makeNullMap(board_width, board_height),
+            //x: params.x ? params.x : board_x0, // `OLD
+			x: (gbox.getScreenW()-board_width*tilesize)/2,
 			y: params.y ? params.y : board_y0,
 			last_board_id: params.last_board_id?params.last_board_id:board_id,
             next_board_id: params.next_board_id?params.next_board_id:board_id,
@@ -743,6 +558,9 @@
 			},
 			fillWithBlanks: function() {
 				//`TODO
+				for (i=0; i<board_width/this.scale; i++) for (j=0; j<board_width/this.scale; j++) {
+					this.placeMonad(i*this.scale, j*this.scale, blank);
+				}
 			},
 			fillRandomly: function() {
 				for (i=0; i<board_width/this.scale; i++) for (j=0; j<board_width/this.scale; j++) {
@@ -759,8 +577,10 @@
 				/* Returns true if x, y is at the top-left corner of a whole monad on this board*/
 				for (var i=0; i<this.scale; i++) {
 					for (var j=0; j<this.scale; j++) {
-						if (outOfBounds(x+i, y+j)) return false;
-						if (i==0 && j==0) { if (typeof this.map[y+j][x+i]!="number") return false; }
+						if (outOfBounds((x+i), (y+j))) return false;
+						if (i==0 && j==0) { if (typeof this.map[y+j][x+i]!="number") 
+						{ console.log("    No integer monad at", i, j); return false; }
+						}
 						else if (typeof this.map[y+j][x+i] != "string") return false;
 					}
 				}
@@ -949,14 +769,19 @@
 		board.refreshTilemap()
         return board;
     }
-    function player() {
+    function Player() {
 		return {
 			id:'player',
 			group:'game',
 			level:1,
+			hasWon: false,
+			reset: function() {
+				this.level=1;
+				this.hasWon=false;
+			},
 			raiseLevel: function() { this.level +=1;},
-			lowerLevel: function() {this.level -=1;},
-			initialize: function() {},
+			lowerLevel: function() { this.level -=1;},
+			initialize: function() {console.log("Player has initialized!");},
 			first: function() {},
 			blit: function() {
 				//`TODO: blit HUD information here
@@ -964,7 +789,7 @@
 			
 		};
 	}
-	function monster(board_id) {
+	function Monster(board_id) {
         return {
             id:'monster',
             group:'cursor',
@@ -1021,13 +846,6 @@
 				var new_x = this.x+dcoords.x;
 				var new_y = this.y+dcoords.y;
 				
-				// If the cursor is sitting inside a larger monad,
-				// give it opportunity to get off of it
-				/*if (next_board.getMonad(this.x, this.y)!=blank) {
-					new_x = this.x + dcoords.x*next_board.scale;
-					new_y = this.y + dcoords.y*next_board.scale;
-				}*/
-				
 				// Only complete the move if the cursor doesn't run into a larger monad (or the edge)
 				if (this.board.isCompleteTetradWithBlanks(new_x, new_y)) {
 					this.x = new_x;
@@ -1037,14 +855,12 @@
             sizeup: function() {
 				this.board = getBoard(this.board.next_board_id);
 				
-				if (this.x + this.board.scale > board_width) this.x -= (this.x+this.board.scale-board_width);
-				if (this.y + this.board.scale > board_height) this.y -= (this.y+this.board.scale-board_height);
+				if (this.x + this.board.scale >= board_width) this.x -= (this.x+this.board.scale-board_width);
+				if (this.y + this.board.scale >= board_height) this.y -= (this.y+this.board.scale-board_height);
 				
-				display("You ate a stone!");
 			},
 			sizedown: function() {
 				this.board = getBoard(this.board.last_board_id);
-				display("You ate a water!")
 			},
 			eat_tetrad: function() {
 				if (this.t==null) return;
@@ -1061,7 +877,7 @@
 				//`??? Do I really need to place this monad according to the pixel?
 				this.board.placeMonadByPixel(this.x*tilesize, this.y*tilesize, m);
 				
-				scoreMonad(species_grps[species[m]], this.board.scale/2);
+				//scoreMonad(species_grps[species[m]], this.board.scale/2);
 				
 				this.freeze=false;
 				this.t=null;
@@ -1069,12 +885,10 @@
 			eat_monad: function() {
 				if (this.m==null) return;
 				player = gbox.getObject("game", "player");
-				//console.log("Player:", player);
 				
-				console.log("Eating monad:", this.m);
+				if (this.board==board_layers[goal_level]) maingame.gameIsCompleted();
 				
 				var s = this.board.scale;
-				
 				switch (this.m) {
 					// Stone monad: level up
 					case 0:
@@ -1083,8 +897,26 @@
 						this.sizeup();
 						break;
 						
-					 // Satellite monads: `?????
-					case 1: case 2: case 3: case 4:
+					 // Satellite monads: flip two adjacent sides
+					case 1:
+						this.board.swapMonads( xy(this.x,   this.y+s),
+											   xy(this.x+s, this.y),
+											   mirrors_NeSw);
+						break;						
+					case 2:
+						this.board.swapMonads( xy(this.x,   this.y-s),
+											   xy(this.x+s, this.y),
+											   mirrors_NwSe);
+						break;
+					case 3:
+						this.board.swapMonads( xy(this.x,   this.y-s),
+											   xy(this.x-s, this.y),
+											   mirrors_NeSw);
+						break;
+					case 4:
+						this.board.swapMonads( xy(this.x,   this.y+s),
+											   xy(this.x-s, this.y),
+											   mirrors_NwSe);
 						break;
 					
 					// Road monads: Swap monads on opposite sides
@@ -1151,13 +983,17 @@
 											   mirrors_NeSw);
 						break;
 					
-					// Water monad: level down
-					case 14: 
-						player.lowerLevel();
+					// Water monad: becomes blank when eaten
+					case 14:
+						this.board.placeMonad(this.x, this.y, blank);
+						// `OLD (code for levelling down)
+						/*player.lowerLevel();
 						if (Math.pow(2, player.level)<this.board.scale) {
 							this.sizedown();
 							//`TODO: (Not necessarily here) Check for the monster being trapped with nowhere to go.
 						}
+						*/
+						
 				}	
 			},
 			
@@ -1266,13 +1102,14 @@
             }
         };
     }
-	function background() {
+	function Background() {
         return {
             id: 'background',
             group: 'background',
             initialize: function() {},
             first:      function() {
-				board = getBoard('b1');
+				// `OLD
+				/*board = getBoard('b1');
 				if (gbox.keyIsHit('tab')) {
 					for (var y=0; y<board_height; y++) {
 					for (var x=0; x<board_width; x++) {
@@ -1281,9 +1118,9 @@
 					}}
 					board_layers[0].refreshTilemap();
 				}
-				
-				// Load a new board
-				if (gbox.keyIsHit('n')) loadNewBoard(tut3, ['a']);
+				*/
+				// Load a new board (`OLD)
+				// if (gbox.keyIsHit('n')) loadNewBoard(tut3, ['a']);
 			},
             blit:       function() {
 				clearBuffer();
@@ -1298,32 +1135,310 @@
 			}
         };
     }
-	function loadResources() {
+	
+  </script>
+  
+  <script id=instruction_screens>
+	function instr_screen1(params) {
+		clearBuffer('black');
+		params.text = "The monster finds itself confined to a board filled with monads.";
+		params.dy=60; params.blit();
+		
+		// `TODO: Blit an image of the monster on a board (or a real board or something)
+		
+		params.text = "(Move the monster with the arrow keys.)"
+		params.dy=360; params.blit();
+		
+		return gbox.keyIsHit("enter");
+	}
+	function instr_screen2(params) {
+		clearBuffer('black');
+		params.text = "The monster can eat groups of four monads, turning them into a new monad.";
+		params.dy=60; params.blit();
+		
+		// `TODO: Blit an image of the monster on a board (or a real board or something)
+		
+		//params.text = "Move the monster around with the arrow keys."
+		//params.dy=400; params.blit();
+		
+		return gbox.keyIsHit("enter");
+	}
+  </script>
+  
+  <script id=game_methods>  
+    function main() {        
+        // Specify the object groups, in a certain order
+        gbox.setGroups(['background', 'boards', 'cursor', 'game']); 
+
+        // Create the maingame; specify the title/intro routines
+        maingame = gamecycle.createMaingame('game', 'game');
+        
+		// GAMECYCLE METHODS
+		// 100, 101, 102: Title sequence animation
+		maingame.gameTitleIntroAnimation = function(reset) {
+			// `OLD
+			//clearBuffer();
+			/*gbox.blitText(gbox.getBufferContext(),{
+				font:"large",
+				text:"MONSTRAD",
+				//valign:gbox.ALIGN_MIDDLE,
+				halign:gbox.ALIGN_CENTER,
+				dx:0,dy:80,
+				dw:gbox.getScreenW()});
+			*/
+			return true;
+		}
+		// 100: After staring at the title a bit, the player presses start
+		maingame.pressStartIntroAnimation = function(reset) {
+			// Animate a couple black rectangles coming up/down
+			if (reset) { this._ii=0; }
+			else { this._ii++; }
+			var y0 = 5*this._ii-3;
+			var y1 = 320-5*this._ii;
+			if (y1>=260) {
+				gbox.blitRect(gbox.getBufferContext(), {x:0, y:y0, w:640, h:5});
+				gbox.blitRect(gbox.getBufferContext(), {x:0, y:y1, w:640, h:5+160});
+			}
+			else {
+				return true; //gbox.keyIsHit("enter");
+			}
+			
+        };
+		// 101: Game menu
+		maingame.gameMenu = function(reset) {
+			if (reset) {
+				toys.resetToy(this, "difficulty");
+			}
+			
+			if (this.difficulty && game_modes[this.difficulty]=='instructions') {
+				// Wait until after the instructions are finished, if applicable
+				if (!this.showInstructions()) return false;
+				else {
+					toys.resetToy(this, "difficulty");
+					this.difficulty=null;
+				}
+			}
+			// This is to cover up the menu cursor's old position
+			gbox.blitRect(gbox.getBufferContext(), {x:menu_x0, y:menu_y0+40, w:50, h:100});
+			
+			// Set parameters for menu text
+			menu_params = gametext();
+			menu_params.dx = menu_x0;
+			menu_params.dy = menu_y0;
+			menu_params.font="large"; 
+			
+			menu_params.text="Press enter to choose an option:";
+			menu_params.blit();
+			
+			// Add some parameters so that menu_params can be passed to toys.ui.menu
+			menu_params.keys = {up:"up",down:"down",ok:"enter",cancel:"backspace"};
+			menu_params.selector = ">";
+			menu_params.items = ["Play on a large board","Play on a small board","Instructions"],
+			menu_params.x = menu_params.dx;
+			menu_params.y = menu_params.dy;
+			
+			if (toys.ui.menu(this, "difficulty", menu_params)) {
+				if (toys.getToyValue(this, "difficulty", "ok") == -1) return -1;
+				else {
+					this.difficulty=toys.getToyValue(this, "difficulty", "selected");
+					if (game_modes[this.difficulty]=='instructions') {
+						return this.showInstructions(true);
+					}
+					// `TODO: Structure the level/gamemode data better so that later it will be easier to include lots of levels
+					else if (game_modes[this.difficulty]=='small_board'){
+						setBoardSize(8, 8);
+						goal_level=3;
+					}
+					else if (game_modes[this.difficulty]=='large_board') {
+						setBoardSize(16, 16);
+						goal_level=4;
+					}
+					console.log(board_area);
+					return true;
+				}
+			}
+		}
+        // 200: Introduction animation
+		maingame.gameIntroAnimation = function(reset){ return true; };
+		// 400: Finish a level
+		maingame.endlevelIntroAnimation = function(reset) { return true; }
+		// 401: Start a level
+		maingame.levelIntroAnimation = function(reset) { return true; }
+		// 801: End of game
+		maingame.gameEndingIntroAnimation = function(reset) {
+			clearBuffer();
+			var txt = gametext().center().middle();
+			txt.font="large";
+			txt.text="Congratulations!";
+			txt.blit();
+			
+			return wait(50, reset);
+			}
+		// 700: Game over
+		maingame.gameoverIntroAnimation = function(reset) {
+			clearBuffer();
+			return true;
+		}
+		// 301: Normal gameplay
+		maingame.gameEvents = function(reset) {
+			switch (this.sub_state) {
+				case 301: // Default (normal game-playing)
+					break;
+				case 302: // Player wants to end game
+					//clearBuffer();
+					txt = gametext().center();
+					txt.dy = 20;
+					txt.text = "Are you sure you want to end this game?"
+					txt.blit();
+					txt.text = "(Press Y or N to continue)";
+					txt.blit();
+					if (gbox.keyIsHit('y')) {
+						this.sub_state=301;
+						maingame.playerDied({wait:5}) // The player never actually dies, but this function is useful
+					}
+					else if (gbox.keyIsHit('n')) this.sub_state=301;
+					break;
+			}
+			
+			// Keyboard events
+			if (gbox.keyIsHit('esc')) { // Hit escape to end game
+				this.sub_state = 302;
+			}
+			
+		}
+		
+		maingame.showInstructions = function(reset) {-
+			instruction_screens=[instr_screen1, instr_screen2];
+			
+			if (reset) this.instr_state=0;
+			if (this.instr_state>=instruction_screens.length) { console.log("Returning true"); return true; }
+			
+			text_params = {font:"small", dx:30, dy:0, blit: function() {gbox.blitText(gbox.getBufferContext(), this)}};
+			if (instruction_screens[this.instr_state](text_params)) {
+				this.instr_state+=1;
+			}
+			params.font="small"; params.dx=400; params.dy=420;
+			params.text="Press enter to continue -->"; params.blit();
+			return false;
+		}
+		
+		// GAME INITIALIZATION
+		
+		// Initialize boards.
+		board_layers = [
+			createBoard('b1', {
+				next_board_id: 'b2',
+			}),
+			createBoard('b2', {
+				scale: 2,
+				last_board_id: 'b1',
+				next_board_id: 'b3',
+			}),
+			createBoard('b3', {
+				scale: 4,
+				last_board_id: 'b2',
+				next_board_id: 'b4',
+			}),
+			createBoard('b4', {
+				scale: 8,
+				last_board_id: 'b3',
+				next_board_id: 'b5',
+			}),
+			createBoard('b5', {
+				scale: 16,
+				last_board_id: 'b4',
+				next_board_id: 'b5',
+			})
+		
+		]
+		
+		// Monad panel   `OLD
+		mp = createBoard('monad_panel', {
+			x: mp_x0+90,
+			y: mp_y0,
+			map: help.asciiArtToMap(['a   ', '    ', 'h   ', '    ', 'fg  ', '    ', 'dceb', '    ', 'jkli', '    ', 'mn  ', '    ', 'o   '], letter_translation)
+		});
+		
+        maingame.initializeGame = function() {
+			console.log("initializeGame was called.");
+			
+            gbox.addObject(Background());
+			
+			// Player object - contains info like the player's level
+			gbox.addObject(Player());
+			
+			// Boards and monster cursor
+			for (i in board_layers) gbox.addObject(board_layers[i]);
+			
+			
+			board_layers[1].fillRandomly();
+			board_layers[2].fillWithBlanks();
+			board_layers[3].fillWithBlanks();
+			board_layers[4].fillWithBlanks();
+			
+			gbox.addObject(Monster('b2'));
+			// `TODO: do fillWithBlanks on the other boards
+			
+			//`TODO:
+			//board_layers[0].fillWithBlanks();
+			//...etc
+            
+			// HUD
+			maingame.hud.setWidget('message', {
+				widget: 'label',
+				font:   'small',
+				value:  "",
+				dx:     message_x0,
+				dy:     message_y0,
+				clear: true
+			});
+			
+			//`Temporary testing variables
+			c = gbox.getObject('cursor', 'monster');
+			cam = gbox.getCamera();
+			b1 = board_layers[0];
+			b2 = board_layers[1];
+			b3 = board_layers[2];
+			b4 = board_layers[3];
+			p = gbox.getObject('game', 'player');
+        };
+        
+        gbox.go();
+    }
+    function loadResources() {
         // Initialize Akihabara
         help.akihabaraInit({
             title:  'Monstrad',
 			width:  640,
             height: 480,
             zoom:   1,
-            splash: {background:"images/splash.png"} // Custom splash screen
+            splash: {background:"images/random_monad_splash_with_title.png"} // Custom splash screen
         });
         
         // Images
-        gbox.addImage('font_small', 'images/font.png');
+		gbox.addImage('splash', "images/random_monad_splash_with_title.png");
+        gbox.addImage('font_small', 'images/font_small.png');
         gbox.addImage('font_large', 'images/font_large.png');
         gbox.addImage('logo', 'images/logo.png');
         gbox.addImage('monad_tileset', 'images/monads.png');
+        gbox.addImage('monad_tileset2', 'images/monads_many.png');
         gbox.addImage('cursor', 'images/cursor.png');
         gbox.addImage('monster', 'images/monster_animation.png');
         
         // FONTS
-        //gbox.addFont({ id: 'small', image: 'font_small', firstletter:' ', tileh:8, tilew:8, tilerow:255, gapx:0, gapy:0 });
-        gbox.addFont({ id: 'small', image: 'font_small', firstletter:' ', tileh:24, tilew:11, tilerow:255, gapx:0, gapy:0 });
-         gbox.addFont({ id: 'large', image: 'font_large', firstletter:' ', tileh:16, tilew:16, tilerow:510, gapx:0, gapy:0 });
+        gbox.addFont({ id: 'small', image: 'font_small', firstletter:' ', tileh:8, tilew:8, tilerow:255, gapx:0, gapy:0 });
+        //gbox.addFont({ id: 'small', image: 'font_small', firstletter:' ', tileh:24, tilew:11, tilerow:255, gapx:0, gapy:0 });
+        gbox.addFont({ id: 'large', image: 'font_large', firstletter:' ', tileh:16, tilew:16, tilerow:510, gapx:0, gapy:0 });
         
         // MONAD TILESETS
         gbox.addTiles({
             id:  'monad_tiles',
+            image: 'monad_tileset',
+            tileh:tilesize, tilew:tilesize, tilerow:4,
+            gapx:0, gapy:0
+        });
+		gbox.addTiles({
+            id:  'monad_tiles_2',
             image: 'monad_tileset',
             tileh:tilesize, tilew:tilesize, tilerow:4,
             gapx:0, gapy:0
@@ -1353,6 +1468,8 @@
 		
         gbox.loadAll(main);
     }
-    
-    </script>
-</html>
+	window.addEventListener('load', loadResources, false);
+  </script>
+  
+  </html>
+-
