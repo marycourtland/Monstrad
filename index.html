@@ -1,17 +1,11 @@
 <!-- Monstrad - a puzzle game inspired by NAWNCO (by Increpare). -->
 
 <!-- Comment tag meanings
-
 `OLD    I plan to remove the following code, but I'm keeping it around for reference or to prevent bugs from popping up.
-
 `TODO   The following code needs to be filled in, but not quite yet.
-
 `NOTE   Just a note about the following code.
-
 `???    A note about something I'm unsure of.
-
 `IDEA   An idea.
-
 `       Some other note to myself which I want to keep track of.
 
 -->
@@ -153,7 +147,8 @@
 	var goal_level = 4;
 	var game_modes = ['large_board', 'small_board', 'instructions'];
 	var board_layers;
-	var txt;
+	var tutorial_board;
+	var tutorial_cursor;
 	
 	// Size of the smallest monad (pixels)
     var tilesize = 20;
@@ -789,11 +784,11 @@
 			
 		};
 	}
-	function Monster(board_id) {
+	function Monster(board_id, cursor_id) {
         return {
-            id:'monster',
+            id: cursor_id? cursor_id : 'monster',
             group:'cursor',
-            board: getBoard(board_id), // `NOTE: Thankfully, the following is just a REFERENCE to the board object (rather than a static copy).
+            board: ((typeof board_id=="string")? getBoard(board_id) : board_id), // `NOTE: Thankfully, the following is just a REFERENCE to the board object (rather than a static copy).
 			tileset:'monster_tiles',  //'cursor_tile',
 			x:0, y:0,
 			
@@ -1082,8 +1077,8 @@
 				}
 				
             },
-            blit: function() {
-				pointCamera();
+            blit: function(pc) {
+				//pointCamera();
 				
 				// this variable is just for conciseness
 				var s = this.board.scale/2; 
@@ -1145,6 +1140,10 @@
 		params.dy=60; params.blit();
 		
 		// `TODO: Blit an image of the monster on a board (or a real board or something)
+		tutorial_board.first();
+		tutorial_cursor.first();
+		tutorial_board.blit();
+		tutorial_cursor.blit();
 		
 		params.text = "(Move the monster with the arrow keys.)"
 		params.dy=360; params.blit();
@@ -1210,6 +1209,7 @@
 				toys.resetToy(this, "difficulty");
 			}
 			
+			
 			if (this.difficulty && game_modes[this.difficulty]=='instructions') {
 				// Wait until after the instructions are finished, if applicable
 				if (!this.showInstructions()) return false;
@@ -1221,6 +1221,8 @@
 			// This is to cover up the menu cursor's old position
 			gbox.blitRect(gbox.getBufferContext(), {x:menu_x0, y:menu_y0+40, w:50, h:100});
 			
+			
+			
 			// Set parameters for menu text
 			menu_params = gametext();
 			menu_params.dx = menu_x0;
@@ -1228,6 +1230,9 @@
 			menu_params.font="large"; 
 			
 			menu_params.text="Press enter to choose an option:";
+			
+			if (gbox.keyIsPressed("a")) menu_params.text+=" ('a' was just pressed)";
+			if (gbox.keyIsPressed("up")) menu_params.text+=" ('up' was just pressed)";
 			menu_params.blit();
 			
 			// Add some parameters so that menu_params can be passed to toys.ui.menu
@@ -1310,15 +1315,20 @@
 		maingame.showInstructions = function(reset) {
 			instruction_screens=[instr_screen1, instr_screen2];
 			
-			if (reset) this.instr_state=0;
+			if (reset) {
+				this.instr_state=0;
+				// Create a board/cursor for the tutorial
+				tutorial_board = createBoard('tutorial', {scale:1, map:help.asciiArtToMap(evalRandomMap(tut3), letter_translation)});
+				tutorial_cursor = Monster(tutorial_board, 'tutorial_cursor');
+			}
 			if (this.instr_state>=instruction_screens.length) { console.log("Returning true"); return true; }
 			
 			text_params = {font:"small", dx:30, dy:0, blit: function() {gbox.blitText(gbox.getBufferContext(), this)}};
 			if (instruction_screens[this.instr_state](text_params)) {
 				this.instr_state+=1;
 			}
-			params.font="small"; params.dx=400; params.dy=420;
-			params.text="Press enter to continue -->"; params.blit();
+			text_params.font="small"; text_params.dx=400; text_params.dy=420;
+			text_params.text="Press enter to continue -->"; text_params.blit();
 			return false;
 		}
 		
