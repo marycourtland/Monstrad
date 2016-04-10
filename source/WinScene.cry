@@ -1,8 +1,9 @@
+/*
+	This scene displays the win message and awaits the enter key.
+*/
 class WinScene : AbstractScene {
 	
-	constructor() : base() {
-		
-	}
+	constructor() : base() { }
 	
 	function update(actions) {
 		for (action : actions) {

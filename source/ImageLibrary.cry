@@ -1,5 +1,12 @@
 import GFX;
 
+/*
+	A class that wraps a dictionary of image paths to image instances.
+	If the image hasn't been fetched yet, it does so.
+	
+	All images are loaded by an image sheet in LoadingScene beforehand,
+	so it's okay to access them synchronously.
+*/
 class ImageLibrary {
 	
 	static field images = {};

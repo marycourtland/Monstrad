@@ -1,3 +1,6 @@
+/*
+	Scene that displays instructions to play.
+*/
 class InstructionsScene : AbstractScene {
 
 	static field PRESS_ENTER = 'Press enter to continue -->';

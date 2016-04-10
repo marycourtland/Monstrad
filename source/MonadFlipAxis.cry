@@ -1,7 +1,20 @@
-
+/*
+	A list of axes that a monad tile can be flipped over.
+*/
 enum MonadFlipAxis {
+	// Horizontal axis: y = 0
+	// Tile movement from flip is vertical.
 	HORIZONTAL,
+	
+	// Vertical axis: x = 0
+	// Tile movement from flip is horizontal.
 	VERTICAL,
+	
+	// Diagonal axis: y = x
+	// Tile movement from flip is diagonal. (NE <--> SW swap)
 	YX,
+	
+	// Diagonal axis: y = -x
+	// Tile movement from flip is diagonal. (NW <--> SE swap)
 	YX_NEGATIVE,
 }

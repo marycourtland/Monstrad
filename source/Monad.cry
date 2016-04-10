@@ -2,6 +2,12 @@ import GFX;
 
 const TILE_SIZE = 40;
 
+/*
+	A monad is a tile. This class describes an actual tile instance on the screen, and contains
+	a reference to its type, which is a unique instance of MonadType that is shared between tiles.
+	
+	Also contains logica about apply a monster munching action.
+*/
 class Monad {
 	field x;
 	field y;
@@ -17,13 +23,16 @@ class Monad {
 		this.playScene = playScene;
 	}
 	
+	/*
+		Applies monster munching action.
+	*/
 	function munch() {
 		cols = this.playScene.cols;
 		rows = this.playScene.rows;
 		grid = this.playScene.grid;
 		playerSize = this.playScene.playerSize;
 		
-		if (playerSize == this.playScene.targetPlayerSize) {
+		if (playerSize == grid.length) {
 			this.playScene.triggerWinScene();
 			return;
 		}
@@ -72,6 +81,9 @@ class Monad {
 		}
 	}
 	
+	/*
+		Draws this tile to the screen. The parent scene may have special offset information which is passed in here.
+	*/
 	function render(xOffset, yOffset) {
 		x = this.x * TILE_SIZE + xOffset;
 		y = this.y * TILE_SIZE + yOffset;

@@ -1,4 +1,7 @@
-
+/*
+	Describes a single flip between two Monads. This is a pair of offsets from a tile
+	and an axis to flip them over.
+*/
 class MonadFlipInstruction {
 
 	field monad1;
@@ -11,6 +14,13 @@ class MonadFlipInstruction {
 		this.axis = axis;
 	}
 	
+	/*
+		Performs the flip and applies it to a grid.
+		Checks to ensure that all monads are the same size and are within range of the grid.
+		Creates new Monad instances with the flipped types.
+		The logic to determine which monads convert into which type is taken care of by MonadType
+		which reads a table from a file.
+	*/
 	function perform(monad, grid) {
 	
 		axis = this.axis;

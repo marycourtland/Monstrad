@@ -1,9 +1,30 @@
 import Resources;
 
+/*
+	Represents a unique Monad type. Individual monad tiles on a board are represented by the
+	Monad class which stores things like location and size, along with a reference to this class.
+*/
 class MonadType {
 
+	/*
+		Monad types by ID. An ID is a 4-character string that lists the continuity uniqueness of each quadrant
+		in the following order: NW, SW, NE, SE and assigns incrementing integers to each continuity range as
+		it is encountered.
+		Examples:
+		- all quadrants connected (white): 1111
+		- no quadrants connected (blue): 1234
+		- top quadrants connected to bottom quadrants, but not side to side (red): 1122
+	*/
+	
+	// Monads are globally unique instances per monad type. This dictionary holds them and is populated
+	// by the static constructor, so it is guaranteed to always exist.
 	static field MONADS_BY_ID = {};
 	
+	/*
+		The following two dictionaries concern the text file that maps all Monad ID's to the flips they generate.
+	*/
+	
+	// Maps the symbol for the flip to its enum value.
 	static field MONAD_FLIP_LOOKUP = {
 		'H': MonadFlipAxis.HORIZONTAL,
 		'V': MonadFlipAxis.VERTICAL,
@@ -11,6 +32,7 @@ class MonadType {
 		'-YX': MonadFlipAxis.YX_NEGATIVE,
 	};
 	
+	// Maps the neighbor designation symbol of a flip to its enum value.
 	static field MONAD_NEIGHBOR_LOOKUP = {
 		'N': MonadNeighbor.N,
 		'S': MonadNeighbor.S,
@@ -23,6 +45,7 @@ class MonadType {
 		'C': MonadNeighbor.CENTER,
 	};
 	
+	// X offset of a neighbor by its neighbor enum value.
 	static field MONAD_NEIGHBOR_X = {
 		MonadNeighbor.N: 0,
 		MonadNeighbor.S: 0,
@@ -37,6 +60,7 @@ class MonadType {
 		MonadNeighbor.CENTER: 0,
 	};
 	
+	// Y offset of a neighbor by its neighbor enum value.
 	static field MONAD_NEIGHBOR_Y = {
 		MonadNeighbor.N: -1,
 		MonadNeighbor.S: 1,
@@ -51,6 +75,8 @@ class MonadType {
 		MonadNeighbor.CENTER: 0,
 	};
 	
+	// Color of each monad. This is used to determine whether two tiles are
+	// the "same" when combining four small Monads into one large Monad.
 	static field MONAD_COLOR_BY_ID = {
 		'1111': 'white',
 		'1211': 'green',
@@ -69,27 +95,41 @@ class MonadType {
 		'1234': 'blue',
 	};
 	
+	/*
+		Loads the monad flip map and generates monad tiles type instances from it.
+	*/
 	static constructor() {
 		lines = Resources.readText('resources/monad_flip_map.txt').split('\n');
 		for (line : lines) {
+			// # are comments in the file.
 			line = line.split('#')[0].trim();
 			if (line.length > 0) {
+				// each line is tab delimited
 				parts = line.split('\t');
+				
+				// The first item in the line is the monad ID.
 				id = parts[0].trim();
+				
+				// The other items (if any) are flip pairs.
 				flips = parts[1:];
 				flipData = [];
 				for (flip : parts[1:]) {
 					flip = flip.trim();
 					if (flip.length > 0) {
+						// Each flip instruction's components are : delimited.
 						parts = flip.split(':');
 						flip = new MonadFlipInstruction(
+							// item 1: neighboring monad 1
 							MonadType.MONAD_NEIGHBOR_LOOKUP[parts[0]],
+							// item 2: neighboring monad 2
 							MonadType.MONAD_NEIGHBOR_LOOKUP[parts[1]],
+							// item 3: which axis does the flip occur over?
 							MonadType.MONAD_FLIP_LOOKUP[parts[2]]);
 						flipData.add(flip);
 					}
 				}
 				
+				// Add the monad type to the lookup. This instance persists the lifetime of the program.
 				MonadType.MONADS_BY_ID[id] = new MonadType(id, flipData);
 			}
 		}
@@ -108,6 +148,7 @@ class MonadType {
 		this.color = MonadType.MONAD_COLOR_BY_ID[id];
 	}
 	
+	// Return the MonadType that should result when this MonadType is flipped over the given axis.
 	function flip(axis) {
 		result = this.flipResultsByAxis.get(axis);
 		if (result == null) {
@@ -138,6 +179,14 @@ class MonadType {
 		return result;
 	}
 	
+	// The input of this function is an indexable type that contains 4 things. This may either be
+	// a bad Monad ID that was generated from a flip (e.g. flipping 1122 along the vertical axis produces 2211)
+	// or may be a list of colors from munching 4 monads at the same time (e.g. ['green', 'green', 'blue', 'white'])
+	// This will canonicalize both of these types into a valid monad ID.
+	//   2211 -> 1122
+	//   green green blue white -> 1123
+	// It does so by creating a dictionary of known values and checking each value in the input, and assigning them
+	// incrementing ID's as unique values are found, or re-using ID's for values that already exist.
 	static function canonicalizeIds(ids) {
 		idNum = {ids[0]: 1};
 		max = 1;

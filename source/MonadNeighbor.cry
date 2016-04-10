@@ -1,4 +1,6 @@
-
+/*
+	A list of neighbor designations that represent offsets from a tile.
+*/
 enum MonadNeighbor {
 	N,
 	S,

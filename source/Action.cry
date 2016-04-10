@@ -1,13 +1,23 @@
+/*
+	Enum representing user key-press events.
+*/
 enum Action {
+	// Arrow keys
 	UP,
 	DOWN,
 	LEFT,
 	RIGHT,
+	
+	// space, enter, and ESC
 	SPACE,
 	ENTER,
+	ESCAPE,
+	
+	// Plus and minus to grow and shrink
 	GROW,
 	SHRINK,
-	ESCAPE,
+	
+	// Y and N for menus.
 	Y,
 	N,
 }

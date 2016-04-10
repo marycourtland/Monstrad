@@ -4,6 +4,10 @@ import Math;
 const FADE_DURATION = FPS * 2;
 const FADE_HALF_DURATION = FADE_DURATION / 2;
 
+/*
+	This scene switches between two scenes with a fade-to-black transition that lasts
+	1 second in and 1 second out.
+*/
 class FadeTransitionScene : AbstractScene {
 	
 	field prev;
@@ -34,7 +38,10 @@ class FadeTransitionScene : AbstractScene {
 	}
 	
 	function render() {
+		// Draw the background scene.
 		this.currentBg.render();
+		
+		// Draw a black overlay with some amount of opacity.
 		GFX.Draw.rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, 0, Math.floor(255 * this.blackness));
 	}
 }
