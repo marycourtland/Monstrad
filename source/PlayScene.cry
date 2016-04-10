@@ -218,6 +218,17 @@ class PlayScene : AbstractScene {
 	// Draw the monads and player with applicable animations.
 	function render() {
 		
+		// Draw the grow text, if present.
+		if (this.growTextCounter != null) {
+			TextRenderer.renderSmall(PlayScene.GROW_TEXT, 40, 20);
+			if (this.growTextCounter < 0) {
+				// A little hacky fade:
+				// Draw a translucent black rectangle over the top portion of the screen.
+				blackness = Math.floor(Math.ensureRange(-255 * this.growTextCounter / GROW_TEXT_FADE_DURATION, 0, 255));
+				GFX.Draw.rectangle(0, 0, SCREEN_WIDTH, 50, 0, 0, 0, blackness);
+			}
+		}
+		
 		for (y = 0; y < this.rows; ++y) {
 			for (x = 0; x < this.cols; ++x) {
 				monad = this.grid[x][y];
@@ -280,16 +291,5 @@ class PlayScene : AbstractScene {
 		width = Math.floor(img.width * effectiveSize);
 		height = Math.floor(img.height * effectiveSize);
 		img.drawStretched(x, y, width, height);
-		
-		// Draw the grow text, if present.
-		if (this.growTextCounter != null) {
-			TextRenderer.renderSmall(PlayScene.GROW_TEXT, 40, 20);
-			if (this.growTextCounter < 0) {
-				// A little hacky fade:
-				// Draw a translucent black rectangle over the top portion of the screen.
-				blackness = Math.floor(Math.ensureRange(-255 * this.growTextCounter / GROW_TEXT_FADE_DURATION, 0, 255));
-				GFX.Draw.rectangle(0, 0, SCREEN_WIDTH, 50, 0, 0, 0, blackness);
-			}
-		}
 	}
 }
