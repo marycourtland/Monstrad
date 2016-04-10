@@ -52,6 +52,7 @@ class PlayScene : AbstractScene {
 		// generate a random list of monads that contains all monad types that's evenly
 		// distributed with the exception of only having one and exactly one "1111" monad.
 		monadIds = MonadType.MONADS_BY_ID.keys().filter(this.filter1111);
+		ids = [];
 		while (ids.length < total) {
 			ids.concat(monadIds);
 		}
@@ -219,8 +220,8 @@ class PlayScene : AbstractScene {
 			} else {
 				// interpolate between where you are and where you came from.
 				progress = 1.0 * this.playerMovementCounter / MONSTER_MOVEMENT_DURATION;
-				px = Math.floor(this.playerMovementStart[0] * (1 - progress) + this.playerMovementEnd[0] * progress) + this.renderOffsetX;
-				py = Math.floor(this.playerMovementStart[1] * (1 - progress) + this.playerMovementEnd[1] * progress) + this.renderOffsetY;
+				px = Math.floor(this.playerMovementStart[0] * (1 - progress) + this.playerMovementEnd[0] * progress) + BOARD_LEFT;
+				py = Math.floor(this.playerMovementStart[1] * (1 - progress) + this.playerMovementEnd[1] * progress) + BOARD_TOP;
 			}
 		}
 		
