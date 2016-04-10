@@ -1,1 +1,9 @@
-Now with moar Crayon.
+To build:
+
+> crayon Monstrad.build -target TARGET
+
+Replace TARGET with one of the following as desired:
+- js_local -> JavaScript with out an image path prefix
+- js_remote -> JavaScript with a /Monstrad/ image path prefix
+- windows -> C#/OpenTK project
+- python -> Python/PyGame project
