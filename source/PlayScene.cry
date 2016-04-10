@@ -1,3 +1,4 @@
+import GFX;
 import Math;
 
 const MUNCH_ANIMATION_DURATION = FPS / 3;
@@ -7,6 +8,9 @@ const MONSTER_GROWTH_DURATION = FPS / 2;
 
 const BOARD_LEFT = 160;
 const BOARD_TOP = 70;
+
+const GROW_TEXT_OPAQUE_DURATION = FPS * 4;
+const GROW_TEXT_FADE_DURATION = FPS;
 
 /*
 	Scene that actually performs gameplay.
@@ -26,6 +30,12 @@ class PlayScene : AbstractScene {
 	field playerSizeChangeIsGrowth;
 	field playerMaxGrowth = 1;
 	
+	// If not null, will display grow text and decrement by 1.
+	// If positive, will show opaque text.
+	// If negative, will show faded text.
+	// If below -FADE_DURATION value, will go back to null.
+	field growTextCounter = null;
+	
 	field cols;
 	field rows;
 	
@@ -33,6 +43,8 @@ class PlayScene : AbstractScene {
 	// Tiles that have grown will be located in the cell of their top left corner, and the rest of
 	// the tiles they span over will be nulls.
 	field grid;
+	
+	static field GROW_TEXT = "You have eaten a stone monad - time to grow bigger!";
 	
 	constructor(cols, rows) : base() {
 		this.cols = cols;
@@ -139,6 +151,16 @@ class PlayScene : AbstractScene {
 				this.playerGrowthCounter = null;
 			}
 		}
+		
+		if (this.growTextCounter != null) {
+			if (this.growTextCounter-- < -GROW_TEXT_FADE_DURATION) {
+				this.growTextCounter = null;
+			}	
+		}
+	}
+	
+	function triggerGrowText() {
+		this.growTextCounter = GROW_TEXT_OPAQUE_DURATION;
 	}
 	
 	function triggerWinScene() {
@@ -258,5 +280,16 @@ class PlayScene : AbstractScene {
 		width = Math.floor(img.width * effectiveSize);
 		height = Math.floor(img.height * effectiveSize);
 		img.drawStretched(x, y, width, height);
+		
+		// Draw the grow text, if present.
+		if (this.growTextCounter != null) {
+			TextRenderer.renderSmall(PlayScene.GROW_TEXT, 40, 20);
+			if (this.growTextCounter < 0) {
+				// A little hacky fade:
+				// Draw a translucent black rectangle over the top portion of the screen.
+				blackness = Math.floor(Math.ensureRange(-255 * this.growTextCounter / GROW_TEXT_FADE_DURATION, 0, 255));
+				GFX.Draw.rectangle(0, 0, SCREEN_WIDTH, 50, 0, 0, 0, blackness);
+			}
+		}
 	}
 }

@@ -42,6 +42,9 @@ class Monad {
 			if (this.type.id == '1111') {
 				// grow!
 				this.playScene.growPlayer();
+				// growPlayer is also used when the user presses '+', so the grow text
+				// needs to be triggered independently.
+				this.playScene.triggerGrowText();
 				
 			} else {
 				// flip things around
