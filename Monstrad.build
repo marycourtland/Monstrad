@@ -1,0 +1,30 @@
+<build>
+	<projectname>Monstrad</projectname>
+	<source>source/</source>
+	<output>output/%TARGET_NAME%</output>
+	
+	<spritesheets>
+		<sheet id="everything">
+			<prefix>images/</prefix>
+		</sheet>
+	</spritesheets>
+	
+	<!-- Targets -->
+	<target name="js_local">
+		<platform>js</platform>
+	</target>
+	
+	<target name="js_remote">
+		<platform>js</platform>
+		<jsfileprefix>/Monstrad/</jsfileprefix>
+		<minified>true</minified>
+	</target>
+	
+	<target name="windows">
+		<platform>csopengl</platform>
+	</target>
+	
+	<target name="python">
+		<platform>python</platform>
+	</target>
+</build>

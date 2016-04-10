@@ -1,0 +1,124 @@
+enum TitlePhase {
+	START,
+	ANIMATION,
+	MENU,
+	FLASH,
+}
+
+const TITLE_TRANSITION_DURATION = FPS / 2;
+
+class TitleScene : AbstractScene {
+	
+	field phase = TitlePhase.START;
+	field phaseCounter = 0;
+	field menuCursorIndex = 0;
+	field showOptions = false;
+	field blackBarProgress = 0.0;
+	field commitOption = null;
+	
+	static field MENU_OPTIONS = [
+		"Play on a large board",
+		"Play on a small board",
+		"Instructions",
+	];
+	
+	constructor(startingPhase = TitlePhase.START) : base() {
+		this.phase = startingPhase;
+	}
+	
+	function update(actions) {
+		this.phaseCounter++;
+		
+		switch (this.phase) {
+			case TitlePhase.START:
+				this.blackBarProgress = 0.0;
+				if (this.phaseCounter > FPS * 3) {
+					this.phaseCounter = 0;
+					this.phase = TitlePhase.ANIMATION;
+				}
+				break;
+				
+			case TitlePhase.ANIMATION:
+				this.blackBarProgress = 1.0 * this.phaseCounter / TITLE_TRANSITION_DURATION;
+				if (this.phaseCounter >= TITLE_TRANSITION_DURATION) {
+					this.phase = TitlePhase.MENU;
+					this.phaseCounter = 0;
+				}
+				break;
+			
+			case TitlePhase.MENU:
+				this.showOptions = true;
+				this.blackBarProgress = 1.0;
+				commit = false;
+				for (action : actions) {
+					switch (action) {
+						case Action.UP: this.menuCursorIndex--; break;
+						case Action.DOWN: this.menuCursorIndex++; break;
+						case Action.ENTER: commit = true; break;
+					}
+				}
+				
+				this.menuCursorIndex = Math.ensureRange(this.menuCursorIndex, 0, 2);
+				
+				if (commit) {
+					this.commitOption = this.menuCursorIndex;
+					this.phaseCounter = 0;
+					this.phase = TitlePhase.FLASH;
+				}
+				break;
+				
+			case TitlePhase.FLASH:
+				this.showOptions = true;
+				this.blackBarProgress = 1.0;
+				if (this.phaseCounter >= FPS) {
+					switch (this.menuCursorIndex) {
+						case 0: this.playLargeBoard(); break;
+						case 1: this.playSmallBoard(); break;
+						case 2: this.startInstructions(); break;
+					}
+				}
+				break;
+		}
+	}
+	
+	function playLargeBoard() {
+		this.switchScene(new FadeTransitionScene(this, new PlayScene(8, 8)));
+	}
+	
+	function playSmallBoard() {
+		this.switchScene(new FadeTransitionScene(this, new PlayScene(4, 4)));
+	}
+	
+	function startInstructions() {
+		this.switchScene(new InstructionsScene());
+	}
+	
+	function render() {
+		ImageLibrary.get('title.png').draw(0, 0);
+		
+		if (this.blackBarProgress > 0) {
+			topBlackBar = Math.floor(60 * this.blackBarProgress);
+			bottomBlackBar = Math.floor(220 * this.blackBarProgress);
+			
+			GFX.Draw.rectangle(0, 0, SCREEN_WIDTH, topBlackBar, 0, 0, 0);
+			GFX.Draw.rectangle(0, SCREEN_HEIGHT - bottomBlackBar, SCREEN_WIDTH, bottomBlackBar, 0, 0, 0);
+			
+			if (this.showOptions) {
+				x = 100;
+				y = 320;
+				TextRenderer.renderLarge("Press enter to choose an option:", x, y);
+				
+				y += 36;
+				for (i = 0; i < 3; ++i) {
+					showCaret = false;
+					if (this.menuCursorIndex == i) {
+						showCaret = this.phase != TitlePhase.FLASH || this.phaseCounter % 2 == 0;
+					}
+					option = (showCaret ? '>' : ' ') + TitleScene.MENU_OPTIONS[i];
+					TextRenderer.renderLarge(option, x, y);
+					y += 18;
+				}
+			}
+		}
+	}
+}

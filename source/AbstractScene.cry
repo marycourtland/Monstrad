@@ -1,0 +1,11 @@
+class AbstractScene {
+	
+	field nextScene = this;
+	
+	constructor() {
+	}
+	
+	function switchScene(scene) {
+		this.nextScene = scene;
+	}
+}

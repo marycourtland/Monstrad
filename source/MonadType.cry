@@ -1,0 +1,155 @@
+import Resources;
+
+class MonadType {
+
+	static field MONADS_BY_ID = {};
+	
+	static field MONAD_FLIP_LOOKUP = {
+		'H': MonadFlipAxis.HORIZONTAL,
+		'V': MonadFlipAxis.VERTICAL,
+		'YX': MonadFlipAxis.YX,
+		'-YX': MonadFlipAxis.YX_NEGATIVE,
+	};
+	
+	static field MONAD_NEIGHBOR_LOOKUP = {
+		'N': MonadNeighbor.N,
+		'S': MonadNeighbor.S,
+		'E': MonadNeighbor.E,
+		'W': MonadNeighbor.W,
+		'NE': MonadNeighbor.NE,
+		'NW': MonadNeighbor.NW,
+		'SE': MonadNeighbor.SE,
+		'SW': MonadNeighbor.SW,
+		'C': MonadNeighbor.CENTER,
+	};
+	
+	static field MONAD_NEIGHBOR_X = {
+		MonadNeighbor.N: 0,
+		MonadNeighbor.S: 0,
+		MonadNeighbor.E: 1,
+		MonadNeighbor.W: -1,
+		
+		MonadNeighbor.NE: 1,
+		MonadNeighbor.NW: -1,
+		MonadNeighbor.SE: 1,
+		MonadNeighbor.SW: -1,
+		
+		MonadNeighbor.CENTER: 0,
+	};
+	
+	static field MONAD_NEIGHBOR_Y = {
+		MonadNeighbor.N: -1,
+		MonadNeighbor.S: 1,
+		MonadNeighbor.E: 0,
+		MonadNeighbor.W: 0,
+		
+		MonadNeighbor.NE: -1,
+		MonadNeighbor.NW: -1,
+		MonadNeighbor.SE: 1,
+		MonadNeighbor.SW: 1,
+		
+		MonadNeighbor.CENTER: 0,
+	};
+	
+	static field MONAD_COLOR_BY_ID = {
+		'1111': 'white',
+		'1211': 'green',
+		'1222': 'green',
+		'1121': 'green',
+		'1112': 'green',
+		'1221': 'teal',
+		'1223': 'purple',
+		'1231': 'purple',
+		'1122': 'red',
+		'1212': 'red',
+		'1123': 'yellow',
+		'1213': 'yellow',
+		'1232': 'yellow',
+		'1233': 'yellow',
+		'1234': 'blue',
+	};
+	
+	static constructor() {
+		lines = Resources.readText('resources/monad_flip_map.txt').split('\n');
+		for (line : lines) {
+			line = line.split('#')[0].trim();
+			if (line.length > 0) {
+				parts = line.split('\t');
+				id = parts[0].trim();
+				flips = parts[1:];
+				flipData = [];
+				for (flip : parts[1:]) {
+					flip = flip.trim();
+					if (flip.length > 0) {
+						parts = flip.split(':');
+						flip = new MonadFlipInstruction(
+							MonadType.MONAD_NEIGHBOR_LOOKUP[parts[0]],
+							MonadType.MONAD_NEIGHBOR_LOOKUP[parts[1]],
+							MonadType.MONAD_FLIP_LOOKUP[parts[2]]);
+						flipData.add(flip);
+					}
+				}
+				
+				MonadType.MONADS_BY_ID[id] = new MonadType(id, flipData);
+			}
+		}
+	}
+	
+	field id;
+	field flips = [];
+	field image;
+	field color;
+	field flipResultsByAxis = { }; // lazily populated
+	
+	constructor(id, flips) {
+		this.id = id;
+		this.image = ImageLibrary.get('monads/' + id + '.png');
+		this.flips = flips;
+		this.color = MonadType.MONAD_COLOR_BY_ID[id];
+	}
+	
+	function flip(axis) {
+		result = this.flipResultsByAxis.get(axis);
+		if (result == null) {
+			a = this.id[0];
+			b = this.id[1];
+			c = this.id[2];
+			d = this.id[3];
+			switch (axis) {
+				case MonadFlipAxis.HORIZONTAL:
+					t = a; a = b; b = t;
+					t = c; c = d; d = t;
+					break;
+				case MonadFlipAxis.VERTICAL:
+					t = a; a = c; c = t;
+					t = b; b = d; d = t;
+					break;
+				case MonadFlipAxis.YX:
+					t = b; b = c; c = t;
+					break;
+				case MonadFlipAxis.YX_NEGATIVE:
+					t = a; a = d; d = t;
+					break;
+			}
+			resultId = MonadType.canonicalizeIds(a + b + c + d);
+			result = MonadType.MONADS_BY_ID[resultId];
+			this.flipResultsByAxis[axis] = result;
+		}
+		return result;
+	}
+	
+	static function canonicalizeIds(ids) {
+		idNum = {ids[0]: 1};
+		max = 1;
+		a = 1;
+		b = idNum.get(ids[1], max + 1);
+		idNum[ids[1]] = b;
+		max = Math.max(max, b);
+		c = idNum.get(ids[2], max + 1);
+		idNum[ids[2]] = c;
+		max = Math.max(max, c);
+		d = idNum.get(ids[3], max + 1);
+		idNum[ids[3]] = d;
+		return '' + a + b + c + d;
+	}
+}

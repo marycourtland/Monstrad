@@ -1,0 +1,40 @@
+import GFX;
+import Math;
+
+const FADE_DURATION = FPS * 2;
+const FADE_HALF_DURATION = FADE_DURATION / 2;
+
+class FadeTransitionScene : AbstractScene {
+	
+	field prev;
+	field next;
+	field currentBg;
+	field counter = 0;
+	field blackness = 0.0;
+	
+	constructor(prev, next) : base() {
+		this.prev = prev;
+		this.next = next;
+		this.currentBg = prev;
+	}
+	
+	function update(actions) {
+		this.counter++;
+		if (this.counter >= FADE_DURATION) {
+			this.switchScene(this.next);
+		}
+		
+		if (this.counter < FADE_HALF_DURATION) {
+			this.blackness = 1.0 * this.counter / FADE_HALF_DURATION;
+			this.currentBg = this.prev;
+		} else {
+			this.blackness = 1.0 - 1.0 * (this.counter - FADE_HALF_DURATION) / FADE_HALF_DURATION;
+			this.currentBg = this.next;
+		}
+	}
+	
+	function render() {
+		this.currentBg.render();
+		GFX.Draw.rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, 0, Math.floor(255 * this.blackness));
+	}
+}

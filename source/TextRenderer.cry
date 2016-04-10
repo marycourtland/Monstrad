@@ -1,0 +1,58 @@
+import Resources;
+
+class TextRenderer {
+	static field font = null;
+	
+	static function renderSmall(text, x, y) {
+		TextRenderer.render('small', text, x, y);
+	}
+	
+	static function renderLarge(text, x, y) {
+		TextRenderer.render('large', text, x, y);
+	}
+	
+	static function initialize() {
+		filenames = {};
+		// This file contains a bunch of lines that contain the character value, a space, and the filename it's in.
+		for (line : Resources.readText('images/fonts/char_to_filename.txt').split('\n')) {
+			parts = line.trim().split(' ');
+			if (parts.length == 2) {
+				filenames[parts[0]] = parts[1];
+			}
+		}
+		
+		TextRenderer.font = {};
+		
+		for (size : ['small', 'large']) {
+			lookup = {};
+			for (char : filenames.keys()) {
+				file = filenames[char];
+				lookup[char] = ImageLibrary.get('fonts/' + size + '/' + file + '.png');
+			}
+			TextRenderer.font[size] = lookup;
+		}
+	}
+	
+	static function render(size, text, x, y) {
+		if (TextRenderer.font == null) {
+			TextRenderer.initialize();
+			// try again
+			return TextRenderer.render(size, text, x, y);
+		}
+		
+		lookup = TextRenderer.font[size];
+		
+		for (char : text) {
+			if (char == ' ') {
+				x += lookup['v'].width;
+			} else {
+				img = lookup.get(char);
+				if (img == null) {
+					img = lookup['?'];
+				}
+				img.draw(x, y);
+				x += img.width;
+			}
+		}
+	}
+}

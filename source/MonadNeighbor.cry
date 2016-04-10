@@ -1,0 +1,12 @@
+
+enum MonadNeighbor {
+	N,
+	S,
+	E,
+	W,
+	NE,
+	NW,
+	SE,
+	SW,
+	CENTER,
+}

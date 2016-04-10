@@ -1,0 +1,39 @@
+import GFX;
+import Math;
+
+class LoadingScene : AbstractScene {
+	
+	field loader;
+	field progress = 0.0;
+	
+	constructor() : base() {
+		// Image sheet defined in build file. Includes all images.
+		this.loader = GFX.ImageSheetLoader.fromIds('everything');
+	}
+	
+	function update(actions) {
+		
+		this.progress = this.loader.getProgress();
+		
+		if (this.loader.isDone()) {
+			this.switchScene(new TitleScene());
+		}
+	}
+	
+	function render() {
+		width = SCREEN_WIDTH;
+		height = 6;
+		y = SCREEN_HEIGHT / 2 - height / 2;
+		
+		GFX.Draw.rectangle(
+			0, y, width, height,
+			100, 100, 100);
+		
+		width = Math.floor(width * this.progress);
+		
+		GFX.Draw.rectangle(
+			0, y, width, height,
+			255, 240, 0);
+		
+	}
+}

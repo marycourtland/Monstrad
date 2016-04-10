@@ -1,0 +1,11 @@
+enum Action {
+	UP,
+	DOWN,
+	LEFT,
+	RIGHT,
+	SPACE,
+	ENTER,
+	GROW,
+	SHRINK,
+	ESCAPE,
+}

@@ -1,0 +1,204 @@
+import Math;
+
+const MUNCH_ANIMATION_DURATION = FPS / 3;
+const MUNCH_ANIMATION_HALF = MUNCH_ANIMATION_DURATION / 2;
+const MONSTER_MOVEMENT_DURATION = FPS / 5;
+const MONSTER_GROWTH_DURATION = FPS / 2;
+
+class PlayScene : AbstractScene {
+	field playerSize = 1;
+	field targetPlayerSize;
+	
+	field playerX = 0;
+	field playerY = 0;
+	field playerMunchCounter = null;
+	field playerMovementCounter = null;
+	field playerMovementStart;
+	field playerMovementEnd;
+	field playerGrowthCounter = null;
+	field playerSizeChangeIsGrowth;
+	field playerMaxGrowth = 1;
+	
+	field renderOffsetX = 160;
+	field renderOffsetY = 70;
+	
+	field grid;
+	field cols;
+	field rows;
+	
+	constructor(cols, rows) : base() {
+		this.cols = cols;
+		this.rows = rows;
+		this.targetPlayerSize = Math.min(cols, rows);
+		
+		this.grid = makeGrid(cols, rows);
+		monadIds = MonadType.MONADS_BY_ID.keys();
+		total = cols * rows;
+		ids = [];
+		while (ids.length < total) {
+			ids.concat(monadIds);
+		}
+		ids.shuffle();
+		for (y = 0; y < rows; ++y) {
+			for (x = 0; x < cols; ++x) {
+				this.grid[x][y] = new Monad(x, y, 1, MonadType.MONADS_BY_ID[ids.pop()], this);
+			}
+		}
+	}
+	
+	function update(actions) {
+		dx = 0;
+		dy = 0;
+		
+		isNotBusy = 
+			this.playerMovementCounter == null && 
+			this.playerMunchCounter == null &&
+			this.playerGrowthCounter == null;
+		
+		for (action : actions) {
+			switch (action) {
+				case Action.SPACE:
+					if (isNotBusy) this.munchCell();
+					break;
+				case Action.UP:
+					if (isNotBusy) dy = -1;
+					break;
+				case Action.DOWN:
+					if (isNotBusy) dy = 1;
+					break;
+				case Action.LEFT:
+					if (isNotBusy) dx = -1;
+					break;
+				case Action.RIGHT:
+					if (isNotBusy) dx = 1;
+					break;
+				case Action.GROW:
+					if (isNotBusy && this.playerSize < this.playerMaxGrowth) this.growPlayer();
+					break;
+				case Action.SHRINK:
+					if (isNotBusy) this.shrinkPlayer();
+					break;
+				case Action.ESCAPE:
+					break;
+			}
+		}
+		
+		x = this.playerX + dx * this.playerSize;
+		y = this.playerY + dy * this.playerSize;
+		if (x != this.playerX || y != this.playerY) {
+			if (x >= 0 && y >= 0 && x < this.cols && y < this.rows) {
+				this.movePlayer(x, y);
+			}
+		}
+		
+		if (this.playerMunchCounter != null) {
+			this.playerMunchCounter++;
+			if (this.playerMunchCounter == MUNCH_ANIMATION_HALF) {
+				monad = this.grid[this.playerX][this.playerY];
+				if (monad != null) {
+					monad.munch();
+				}
+			} else if (this.playerMunchCounter >= MUNCH_ANIMATION_DURATION) {
+				this.playerMunchCounter = null;
+			}
+		}
+		
+		if (this.playerGrowthCounter != null) {
+			if (this.playerGrowthCounter++ >= MONSTER_GROWTH_DURATION) {
+				this.playerGrowthCounter = null;
+			}
+		}
+	}
+	
+	function shrinkPlayer() {
+		if (this.playerSize != 1) {
+			this.playerSize /= 2;
+			this.playerGrowthCounter = 0;
+			this.playerSizeChangeIsGrowth = false;
+		}
+	}
+	
+	function growPlayer() {
+		this.playerSize *= 2;
+		this.playerMaxGrowth = Math.max(this.playerMaxGrowth, this.playerSize);
+		this.playerGrowthCounter = 0;
+		this.playerSizeChangeIsGrowth = true;
+		
+		// ensure player is on a non-game-breaking coordinate for this new size.
+		x = this.playerX / this.playerSize * this.playerSize;
+		y = this.playerY / this.playerSize * this.playerSize;
+		if (x != this.playerX || y != this.playerY) {
+			this.movePlayer(x, y);
+		}
+		
+		if (this.playerSize == this.targetPlayerSize) {
+			Core.assert(false, "You win!");
+		}
+	}
+	
+	function munchCell() {
+		this.playerMunchCounter = 0;
+	}
+	
+	function movePlayer(x, y) {
+		this.playerMovementCounter = 0;
+		this.playerMovementStart = [this.playerX * TILE_SIZE, this.playerY * TILE_SIZE];
+		this.playerMovementEnd = [x * TILE_SIZE, y * TILE_SIZE];
+		this.playerX = x;
+		this.playerY = y;
+	}
+	
+	static field MUNCH_FRAMES = [2, 3, 4, 5, 4, 3, 2];
+	
+	function render() {
+		
+		for (y = 0; y < this.rows; ++y) {
+			for (x = 0; x < this.cols; ++x) {
+				monad = this.grid[x][y];
+				if (monad != null) {
+					monad.render(this.renderOffsetX, this.renderOffsetY);
+				}
+			}
+		}
+		
+		px = this.playerX * TILE_SIZE + this.renderOffsetX;
+		py = this.playerY * TILE_SIZE + this.renderOffsetY;
+		
+		if (this.playerMovementCounter != null) {
+			this.playerMovementCounter++;
+			if (this.playerMovementCounter == MONSTER_MOVEMENT_DURATION) {
+				this.playerMovementCounter = null;
+			} else {
+				progress = 1.0 * this.playerMovementCounter / MONSTER_MOVEMENT_DURATION;
+				px = Math.floor(this.playerMovementStart[0] * (1 - progress) + this.playerMovementEnd[0] * progress) + this.renderOffsetX;
+				py = Math.floor(this.playerMovementStart[1] * (1 - progress) + this.playerMovementEnd[1] * progress) + this.renderOffsetY;
+			}
+		}
+		
+		
+		playerImageFrame = 1;
+		if (this.playerMunchCounter != null) {
+			frames = PlayScene.MUNCH_FRAMES;
+			index = frames.length * this.playerMunchCounter / MUNCH_ANIMATION_DURATION;
+			index = Math.min(index, frames.length - 1);
+			playerImageFrame = frames[index];
+		}
+		
+		img = ImageLibrary.get('monster/monster_' + playerImageFrame + '.png');
+		
+		effectiveSize = this.playerSize;
+		if (this.playerGrowthCounter != null) {
+			if (this.playerSizeChangeIsGrowth) {
+				ratio = .5 + .5 * this.playerGrowthCounter / MONSTER_GROWTH_DURATION;
+			} else {
+				ratio = 2 - 1.0 * this.playerGrowthCounter / MONSTER_GROWTH_DURATION;
+			}
+			effectiveSize = this.playerSize * ratio;
+		}
+		ox = -4 * effectiveSize;
+		oy = -10 * effectiveSize;
+		img.drawStretched(
+			Math.floor(px + ox), Math.floor(py + oy),
+			Math.floor(img.width * effectiveSize), Math.floor(img.height * effectiveSize));
+	}
+}

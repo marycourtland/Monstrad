@@ -1,0 +1,52 @@
+import Game;
+
+const FPS = 30;
+const SCREEN_WIDTH = 640;
+const SCREEN_HEIGHT = 480;
+const TITLE = 'Monstrad';
+
+function main() {
+	
+	window = new GameWindow(TITLE, FPS, SCREEN_WIDTH, SCREEN_HEIGHT);
+	actions = [];
+	
+	activeScene = new LoadingScene();
+	
+	while (true) {
+		actions.clear();
+		for (event : window.pumpEvents()) {
+			if (event.type == EventType.QUIT) {
+				return;
+			}
+			
+			if (event.type == EventType.KEY_DOWN) {
+				action = null;
+				switch (event.key) {
+					case KeyboardKey.LEFT: action = Action.LEFT; break;
+					case KeyboardKey.RIGHT: action = Action.RIGHT; break;
+					case KeyboardKey.UP: action = Action.UP; break;
+					case KeyboardKey.DOWN: action = Action.DOWN; break;
+					case KeyboardKey.ENTER: action = Action.ENTER; break;
+					case KeyboardKey.SPACE: action = Action.SPACE; break;
+					case KeyboardKey.HYPHEN: action = Action.SHRINK; break;
+					case KeyboardKey.EQUALS: action = Action.GROW; break;
+					case KeyboardKey.ESCAPE: action = Action.ESCAPE; break;
+				}
+				
+				if (action != null) {
+					actions.add(action);
+				}
+			}
+		}
+		
+		activeScene.update(actions);
+		
+		GFX.Draw.fill(0, 0, 0);
+		
+		activeScene.render();
+		
+		activeScene = activeScene.nextScene;
+		
+		window.clockTick();
+	}
+}

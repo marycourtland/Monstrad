@@ -1,0 +1,7 @@
+
+enum MonadFlipAxis {
+	HORIZONTAL,
+	VERTICAL,
+	YX,
+	YX_NEGATIVE,
+}

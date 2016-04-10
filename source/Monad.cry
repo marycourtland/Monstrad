@@ -1,0 +1,76 @@
+import GFX;
+
+const TILE_SIZE = 40;
+
+class Monad {
+	field x;
+	field y;
+	field type;
+	field size;
+	field playScene;
+	
+	constructor(x, y, size, type, playScene) {
+		this.x = x;
+		this.y = y;
+		this.size = size;
+		this.type = type;
+		this.playScene = playScene;
+	}
+	
+	function munch() {
+		cols = this.playScene.cols;
+		rows = this.playScene.rows;
+		grid = this.playScene.grid;
+		playerSize = this.playScene.playerSize;
+		
+		if (this.size == playerSize) {
+			// attempting to munch 1
+			if (this.type.id == '1111') {
+				// grow!
+				this.playScene.growPlayer();
+				
+			} else {
+				// flip things around
+				for (flip : this.type.flips) {
+					flip.perform(this, grid);
+				}
+			}
+		} else if (playerSize / 2 == this.size) {
+			// attempting to munch 4
+			result = null;
+			allSameSize = true;
+			for (xOffset : [0, this.size]) {
+				for (yOffset : [0, this.size]) {
+					cell = grid[this.x + xOffset][this.y + yOffset];
+					if (cell.size != this.size) {
+						allSameSize = false;
+					}
+				}
+			}
+			
+			if (allSameSize) {
+				ids = [];
+				for (xOffset : [0, this.size]) {
+					for (yOffset : [0, this.size]) {
+						x = this.x + xOffset;
+						y = this.y + yOffset;
+						ids.add(grid[x][y].type.color);
+						grid[x][y] = null;
+					}
+				}
+				id = MonadType.canonicalizeIds(ids);
+				result = new Monad(this.x, this.y, this.size * 2, MonadType.MONADS_BY_ID[id], this.playScene);
+				grid[this.x][this.y] = result;
+			}
+		} else {
+			// can't munch 16 or more
+		}
+	}
+	
+	function render(xOffset, yOffset) {
+		x = this.x * TILE_SIZE + xOffset;
+		y = this.y * TILE_SIZE + yOffset;
+		side = TILE_SIZE * this.size;
+		this.type.image.drawStretched(x, y, side, side);
+	}
+}

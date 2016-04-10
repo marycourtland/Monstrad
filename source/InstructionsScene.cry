@@ -1,0 +1,94 @@
+class InstructionsScene : AbstractScene {
+
+	static field PRESS_ENTER = 'Press enter to continue -->';
+
+	static field TEXT1 = [
+		"                      THE ARROW KEYS",
+		"  The monster is confined to a board filled with monads.",
+		"       The arrow keys will help it navigate around.",
+		"",
+		"",
+		"                      THE SPACE BAR",
+		"The monster will eat monads when the space bar is pressed.",
+		" Try eating many monads to see the effects of each color.",
+		"",
+		"",
+		"                         GROWING",
+		"    One of the monads is filled with nutritious food.",
+		"     Eating it will allow the monster to grow larger.",
+	];
+	
+	static field TEXT2 = [
+		
+		"                   THE PLUS AND MINUS KEYS",
+		"     When the monster has grown to a certain size, it may",
+		"  shrink to any smaller size, and then enlarge itself again.",
+		"           Use the plus and minus keys to do this.",
+		"",
+		"",
+		"",
+		"                      MAKING NEW MONADS",
+		"If the monster eats four monads at once, it will create a new",
+		" monad. None of the original monads will have other effects."
+	];
+	
+	static field TEXT3 = [
+		"      YOUR MISSION:",
+		"",
+		"  Help the monster grow",
+		"  as large as possible-",
+		"thus escaping the board",
+	];
+
+	field pageIndex = 0;
+	
+	constructor() : base() {
+		
+	}
+	
+	function update(actions) {
+		for (action : actions) {
+			if (action == Action.ENTER) {
+				this.pageIndex++;
+			}
+		}
+		
+		if (this.pageIndex == 3) {
+			this.switchScene(new TitleScene(TitlePhase.MENU));
+		}
+	}
+	
+	function render() {
+		font = 'small';
+		text = null;
+		x = 80;
+		y = 100;
+		lineHeight = 20;
+		switch (this.pageIndex) {
+			case 0:
+				text = InstructionsScene.TEXT1;
+				break;
+			case 1:
+				text = InstructionsScene.TEXT2;
+				break;
+			case 2:
+				text = InstructionsScene.TEXT3;
+				font = 'large';
+				x = 200;
+				lineHeight = 30;
+				break;
+		}
+		
+		if (text != null) {
+			textRenderer = font == 'small'
+				? TextRenderer.renderSmall
+				: TextRenderer.renderLarge;
+			for (line : text) {
+				textRenderer(line, x, y);
+				y += lineHeight;
+			}
+			
+			TextRenderer.renderSmall(InstructionsScene.PRESS_ENTER, 400, 440);
+		}
+	}
+}
