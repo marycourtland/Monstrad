@@ -31,6 +31,8 @@ function main() {
 					case KeyboardKey.HYPHEN: action = Action.SHRINK; break;
 					case KeyboardKey.EQUALS: action = Action.GROW; break;
 					case KeyboardKey.ESCAPE: action = Action.ESCAPE; break;
+					case KeyboardKey.Y: action = Action.Y; break;
+					case KeyboardKey.N: action = Action.N; break;
 				}
 				
 				if (action != null) {

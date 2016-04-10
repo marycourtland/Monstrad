@@ -23,6 +23,11 @@ class Monad {
 		grid = this.playScene.grid;
 		playerSize = this.playScene.playerSize;
 		
+		if (playerSize == this.playScene.targetPlayerSize) {
+			this.playScene.triggerWinScene();
+			return;
+		}
+		
 		if (this.size == playerSize) {
 			// attempting to munch 1
 			if (this.type.id == '1111') {

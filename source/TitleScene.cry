@@ -24,6 +24,9 @@ class TitleScene : AbstractScene {
 	
 	constructor(startingPhase = TitlePhase.START) : base() {
 		this.phase = startingPhase;
+		
+		// run one iteration of update so that all the state variables get set according to the desired scene.
+		this.update([]);
 	}
 	
 	function update(actions) {

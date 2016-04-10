@@ -79,6 +79,7 @@ class PlayScene : AbstractScene {
 					if (isNotBusy) this.shrinkPlayer();
 					break;
 				case Action.ESCAPE:
+					this.switchScene(new QuitInquiryScene(this));
 					break;
 			}
 		}
@@ -110,6 +111,10 @@ class PlayScene : AbstractScene {
 		}
 	}
 	
+	function triggerWinScene() {
+		this.switchScene(new FadeTransitionScene(this, new WinScene()));
+	}
+	
 	function shrinkPlayer() {
 		if (this.playerSize != 1) {
 			this.playerSize /= 2;
@@ -129,10 +134,6 @@ class PlayScene : AbstractScene {
 		y = this.playerY / this.playerSize * this.playerSize;
 		if (x != this.playerX || y != this.playerY) {
 			this.movePlayer(x, y);
-		}
-		
-		if (this.playerSize == this.targetPlayerSize) {
-			Core.assert(false, "You win!");
 		}
 	}
 	

@@ -7,5 +7,6 @@ class AbstractScene {
 	
 	function switchScene(scene) {
 		this.nextScene = scene;
+		scene.nextScene = scene;
 	}
 }

@@ -8,4 +8,6 @@ enum Action {
 	GROW,
 	SHRINK,
 	ESCAPE,
+	Y,
+	N,
 }
