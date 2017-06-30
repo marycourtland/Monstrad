@@ -1,0 +1,28 @@
+import Graphics2D;
+
+/*
+	A class that wraps a dictionary of image paths to image instances.
+	If the image hasn't been fetched yet, it does so.
+	
+	All images are loaded by an image sheet in LoadingScene beforehand,
+	so it's okay to access them synchronously.
+*/
+class ImageLibrary {
+	
+	static field images = {};
+
+	// Set by the LoadingScene
+	static field imageSheet = null;
+	
+	constructor() { }
+	
+	static function get(path) {
+		img = ImageLibrary.images.get(path);
+		if (img == null) {
+			rawResource = ImageLibrary.imageSheet.getImage('images/' + path);
+			img = Graphics2D.GraphicsTexture.load(rawResource);
+			ImageLibrary.images[path] = img;
+		}
+		return img;
+	}
+}

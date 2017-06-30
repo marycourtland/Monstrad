@@ -1,0 +1,20 @@
+# This document is tab delimited. The first column is the ID
+# The remaining 0, 1, or 2 columns are swaps denoted by 3 values delimited by a colon.
+# The first two values are the pair to flip: N, S, E, W, NE, SE, NW, SW, C (center)
+# The third value is the axis to flip over (horizontal, vertical, y = x, y = -x)
+
+1111
+1112	N:W:YX
+1121	W:S:-YX
+1122	W:E:V
+1123	W:C:V
+1211	N:E:-YX
+1212	N:S:H
+1213	N:C:H
+1221	NE:SW:YX	NW:SE:-YX
+1222	E:S:YX
+1223	NE:SW:YX
+1231	NW:SE:-YX
+1232	C:S:H
+1233	C:E:V
+1234

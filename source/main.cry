@@ -1,0 +1,70 @@
+import Game;
+import Graphics2D;
+
+const FPS = 30;
+const SCREEN_WIDTH = 640;
+const SCREEN_HEIGHT = 480;
+const TITLE = 'Monstrad';
+
+/*
+	Entry point of execution.
+*/
+function main() {
+	
+	// Make a window.
+	window = new GameWindow(TITLE, FPS, SCREEN_WIDTH, SCREEN_HEIGHT);
+	
+	// this list will contain a list of friendly enums (See Action.cry) that is populated
+	// by iterating over raw keyboard events.
+	actions = [];
+	
+	// Initial scene.
+	activeScene = new LoadingScene();
+	
+	// Main game loop.
+	while (true) {
+		// Clear the actions from the previous frame, if any.
+		actions.clear();
+		for (event : window.pumpEvents()) {
+			// If the user presses the close button or presses Alt+F4 in windowed apps.
+			if (event.type == EventType.QUIT) {
+				return;
+			}
+			
+			// Convert keycodes into Action enums.
+			if (event.type == EventType.KEY_DOWN) {
+				action = null;
+				switch (event.key) {
+					case KeyboardKey.LEFT: action = Action.LEFT; break;
+					case KeyboardKey.RIGHT: action = Action.RIGHT; break;
+					case KeyboardKey.UP: action = Action.UP; break;
+					case KeyboardKey.DOWN: action = Action.DOWN; break;
+					case KeyboardKey.ENTER: action = Action.ENTER; break;
+					case KeyboardKey.SPACE: action = Action.SPACE; break;
+					case KeyboardKey.HYPHEN: action = Action.SHRINK; break;
+					case KeyboardKey.EQUALS: action = Action.GROW; break;
+					case KeyboardKey.ESCAPE: action = Action.ESCAPE; break;
+					case KeyboardKey.Y: action = Action.Y; break;
+					case KeyboardKey.N: action = Action.N; break;
+				}
+				
+				if (action != null) {
+					actions.add(action);
+				}
+			}
+		}
+		
+		activeScene.update(actions);
+		
+		// Clear the screen to black.
+		Graphics2D.Draw.fill(0, 0, 0);
+		
+		activeScene.render();
+		
+		// Switch to the next scene, if different. Generally a scene's nextScene property just points to itself.
+		activeScene = activeScene.nextScene;
+		
+		// Pause until next frame.
+		window.clockTick();
+	}
+}

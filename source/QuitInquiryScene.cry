@@ -1,0 +1,40 @@
+/*
+	Ask user if they want to quit the current game.
+*/
+class QuitInquiryScene : AbstractScene {
+	field backgroundPlayScene;
+	
+	static field TEXT = [
+		"Are you sure you want to end this game?",
+		"      (Press Y or N to continue)"
+		
+	];
+	
+	constructor(bg) : base() {
+		this.backgroundPlayScene = bg;
+	}
+	
+	function update(actions) {
+		for (action : actions) {
+			switch (action) {
+				case Action.Y:
+					this.switchScene(new FadeTransitionScene(this, new TitleScene(TitlePhase.MENU)));
+					break;
+				case Action.N:
+					this.switchScene(this.backgroundPlayScene);
+					break;
+			}
+		}
+	}
+	
+	function render() {
+		this.backgroundPlayScene.render();
+		
+		x = 163;
+		y = 420;
+		for (line : QuitInquiryScene.TEXT) {
+			TextRenderer.renderSmall(line, x, y);
+			y += 24;
+		}
+	}
+}

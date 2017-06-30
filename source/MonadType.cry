@@ -1,0 +1,205 @@
+import Math;
+import Resources;
+
+/*
+	Represents a unique Monad type. Individual monad tiles on a board are represented by the
+	Monad class which stores things like location and size, along with a reference to this class.
+*/
+class MonadType {
+
+	/*
+		Monad types by ID. An ID is a 4-character string that lists the continuity uniqueness of each quadrant
+		in the following order: NW, SW, NE, SE and assigns incrementing integers to each continuity range as
+		it is encountered.
+		Examples:
+		- all quadrants connected (white): 1111
+		- no quadrants connected (blue): 1234
+		- top quadrants connected to bottom quadrants, but not side to side (red): 1122
+	*/
+	
+	// Monads are globally unique instances per monad type. This dictionary holds them and is populated
+	// by the static constructor, so it is guaranteed to always exist.
+	static field MONADS_BY_ID = {};
+	
+	/*
+		The following two dictionaries concern the text file that maps all Monad ID's to the flips they generate.
+	*/
+	
+	// Maps the symbol for the flip to its enum value.
+	static field MONAD_FLIP_LOOKUP = {
+		'H': MonadFlipAxis.HORIZONTAL,
+		'V': MonadFlipAxis.VERTICAL,
+		'YX': MonadFlipAxis.YX,
+		'-YX': MonadFlipAxis.YX_NEGATIVE,
+	};
+	
+	// Maps the neighbor designation symbol of a flip to its enum value.
+	static field MONAD_NEIGHBOR_LOOKUP = {
+		'N': MonadNeighbor.N,
+		'S': MonadNeighbor.S,
+		'E': MonadNeighbor.E,
+		'W': MonadNeighbor.W,
+		'NE': MonadNeighbor.NE,
+		'NW': MonadNeighbor.NW,
+		'SE': MonadNeighbor.SE,
+		'SW': MonadNeighbor.SW,
+		'C': MonadNeighbor.CENTER,
+	};
+	
+	// X offset of a neighbor by its neighbor enum value.
+	static field MONAD_NEIGHBOR_X = {
+		MonadNeighbor.N: 0,
+		MonadNeighbor.S: 0,
+		MonadNeighbor.E: 1,
+		MonadNeighbor.W: -1,
+		
+		MonadNeighbor.NE: 1,
+		MonadNeighbor.NW: -1,
+		MonadNeighbor.SE: 1,
+		MonadNeighbor.SW: -1,
+		
+		MonadNeighbor.CENTER: 0,
+	};
+	
+	// Y offset of a neighbor by its neighbor enum value.
+	static field MONAD_NEIGHBOR_Y = {
+		MonadNeighbor.N: -1,
+		MonadNeighbor.S: 1,
+		MonadNeighbor.E: 0,
+		MonadNeighbor.W: 0,
+		
+		MonadNeighbor.NE: -1,
+		MonadNeighbor.NW: -1,
+		MonadNeighbor.SE: 1,
+		MonadNeighbor.SW: 1,
+		
+		MonadNeighbor.CENTER: 0,
+	};
+	
+	// Color of each monad. This is used to determine whether two tiles are
+	// the "same" when combining four small Monads into one large Monad.
+	static field MONAD_COLOR_BY_ID = {
+		'1111': 'white',
+		'1211': 'green',
+		'1222': 'green',
+		'1121': 'green',
+		'1112': 'green',
+		'1221': 'teal',
+		'1223': 'purple',
+		'1231': 'purple',
+		'1122': 'red',
+		'1212': 'red',
+		'1123': 'yellow',
+		'1213': 'yellow',
+		'1232': 'yellow',
+		'1233': 'yellow',
+		'1234': 'blue',
+	};
+	
+	/*
+		Loads the monad flip map and generates monad tiles type instances from it.
+	*/
+	static constructor() {
+		lines = Resources.readText('resources/monad_flip_map.txt').split('\n');
+		for (line : lines) {
+			// # are comments in the file.
+			line = line.split('#')[0].trim();
+			if (line.length > 0) {
+				// each line is tab delimited
+				parts = line.split('\t');
+				
+				// The first item in the line is the monad ID.
+				id = parts[0].trim();
+				
+				// The other items (if any) are flip pairs.
+				flips = parts[1:];
+				flipData = [];
+				for (flip : parts[1:]) {
+					flip = flip.trim();
+					if (flip.length > 0) {
+						// Each flip instruction's components are : delimited.
+						parts = flip.split(':');
+						flip = new MonadFlipInstruction(
+							// item 1: neighboring monad 1
+							MonadType.MONAD_NEIGHBOR_LOOKUP[parts[0]],
+							// item 2: neighboring monad 2
+							MonadType.MONAD_NEIGHBOR_LOOKUP[parts[1]],
+							// item 3: which axis does the flip occur over?
+							MonadType.MONAD_FLIP_LOOKUP[parts[2]]);
+						flipData.add(flip);
+					}
+				}
+				
+				// Add the monad type to the lookup. This instance persists the lifetime of the program.
+				MonadType.MONADS_BY_ID[id] = new MonadType(id, flipData);
+			}
+		}
+	}
+	
+	field id;
+	field flips = [];
+	field image;
+	field color;
+	field flipResultsByAxis = { }; // lazily populated
+	
+	constructor(id, flips) {
+		this.id = id;
+		this.image = ImageLibrary.get('monads/' + id + '.png');
+		this.flips = flips;
+		this.color = MonadType.MONAD_COLOR_BY_ID[id];
+	}
+	
+	// Return the MonadType that should result when this MonadType is flipped over the given axis.
+	function flip(axis) {
+		result = this.flipResultsByAxis.get(axis);
+		if (result == null) {
+			a = this.id[0];
+			b = this.id[1];
+			c = this.id[2];
+			d = this.id[3];
+			switch (axis) {
+				case MonadFlipAxis.HORIZONTAL:
+					t = a; a = b; b = t;
+					t = c; c = d; d = t;
+					break;
+				case MonadFlipAxis.VERTICAL:
+					t = a; a = c; c = t;
+					t = b; b = d; d = t;
+					break;
+				case MonadFlipAxis.YX:
+					t = b; b = c; c = t;
+					break;
+				case MonadFlipAxis.YX_NEGATIVE:
+					t = a; a = d; d = t;
+					break;
+			}
+			resultId = MonadType.canonicalizeIds(a + b + c + d);
+			result = MonadType.MONADS_BY_ID[resultId];
+			this.flipResultsByAxis[axis] = result;
+		}
+		return result;
+	}
+	
+	// The input of this function is an indexable type that contains 4 things. This may either be
+	// a bad Monad ID that was generated from a flip (e.g. flipping 1122 along the vertical axis produces 2211)
+	// or may be a list of colors from munching 4 monads at the same time (e.g. ['green', 'green', 'blue', 'white'])
+	// This will canonicalize both of these types into a valid monad ID.
+	//   2211 -> 1122
+	//   green green blue white -> 1123
+	// It does so by creating a dictionary of known values and checking each value in the input, and assigning them
+	// incrementing ID's as unique values are found, or re-using ID's for values that already exist.
+	static function canonicalizeIds(ids) {
+		idNum = {ids[0]: 1};
+		_max = 1; // using 'max' as a variable would collide with the max function in Math
+		a = 1;
+		b = idNum.get(ids[1], _max + 1);
+		idNum[ids[1]] = b;
+		_max = Math.max(_max, b);
+		c = idNum.get(ids[2], _max + 1);
+		idNum[ids[2]] = c;
+		_max = Math.max(_max, c);
+		d = idNum.get(ids[3], _max + 1);
+		idNum[ids[3]] = d;
+		return '' + a + b + c + d;
+	}
+}

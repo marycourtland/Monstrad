@@ -1,0 +1,49 @@
+import Graphics2D;
+import ImageResources;
+import Math;
+
+/*
+	Manages image downloads once when the game starts.
+	Displays a yellow loading progress bar while images download.
+	Switches to title screen once it's done.
+*/
+class LoadingScene : AbstractScene {
+	
+	field loader;
+	field progress = 0.0;
+	
+	constructor() : base() {
+		// Image sheet defined in build file. Includes all images.
+		this.loader = ImageResources.ImageSheet.loadFromResourcesAsync('everything');
+	}
+	
+	function update(actions) {
+		
+		this.progress = this.loader.getProgress();
+		
+		if (this.loader.isDone()) {
+			ImageLibrary.imageSheet = this.loader;
+			this.switchScene(new TitleScene());
+		}
+	}
+	
+	function render() {
+		width = SCREEN_WIDTH;
+		height = 6;
+		y = SCREEN_HEIGHT / 2 - height / 2;
+		
+		// dark gray background.
+		Graphics2D.Draw.rectangle(
+			0, y, width, height,
+			100, 100, 100);
+		
+		// pixel width of the actual progress part of the progress bar.
+		width = Math.floor(width * this.progress);
+		
+		// yellow progress bar.
+		Graphics2D.Draw.rectangle(
+			0, y, width, height,
+			255, 240, 0);
+		
+	}
+}

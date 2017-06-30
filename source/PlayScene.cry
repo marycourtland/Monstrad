@@ -1,0 +1,295 @@
+import Graphics2D;
+import Math;
+
+const MUNCH_ANIMATION_DURATION = FPS / 3;
+const MUNCH_ANIMATION_HALF = MUNCH_ANIMATION_DURATION / 2;
+const MONSTER_MOVEMENT_DURATION = FPS / 5;
+const MONSTER_GROWTH_DURATION = FPS / 2;
+
+const BOARD_LEFT = 160;
+const BOARD_TOP = 70;
+
+const GROW_TEXT_OPAQUE_DURATION = FPS * 4;
+const GROW_TEXT_FADE_DURATION = FPS;
+
+/*
+	Scene that actually performs gameplay.
+	Contains a grid and player.
+*/
+class PlayScene : AbstractScene {
+	field playerSize = 1; // this is a power of 2 ratio, not incremental, nor pixels.
+	
+	// TODO: it's time to make a Player class. Over half of the PlayScene class is player state fields.
+	field playerX = 0;
+	field playerY = 0;
+	field playerMunchCounter = null;
+	field playerMovementCounter = null;
+	field playerMovementStart;
+	field playerMovementEnd;
+	field playerGrowthCounter = null;
+	field playerSizeChangeIsGrowth;
+	field playerMaxGrowth = 1;
+	
+	// If not null, will display grow text and decrement by 1.
+	// If positive, will show opaque text.
+	// If negative, will show faded text.
+	// If below -FADE_DURATION value, will go back to null.
+	field growTextCounter = null;
+	
+	field cols;
+	field rows;
+	
+	// This grid will contain monad tiles or nulls.
+	// Tiles that have grown will be located in the cell of their top left corner, and the rest of
+	// the tiles they span over will be nulls.
+	field grid;
+	
+	static field GROW_TEXT = "You have eaten a stone monad - time to grow bigger!";
+	
+	constructor(cols, rows) : base() {
+		this.cols = cols;
+		this.rows = rows;
+		this.grid = this.generateRandomGrid(cols, rows);
+	}
+	
+	// Used by generateRandomGrid as a filter function.
+	function filter1111(id) {
+		return id != '1111';
+	}
+	
+	function generateRandomGrid(cols, rows) {
+		grid = makeGrid(cols, rows);
+		total = cols * rows;
+		
+		// generate a random list of monads that contains all monad types that's evenly
+		// distributed with the exception of only having one and exactly one "1111" monad.
+		monadIds = MonadType.MONADS_BY_ID.keys().filter(this.filter1111);
+		ids = [];
+		while (ids.length < total) {
+			ids.concat(monadIds);
+		}
+		ids = ids[:total - 1] + ['1111'];
+		
+		// Now that we have the right number of the right kind of monads, shuffle the list.
+		ids.shuffle();
+		
+		// Apply to the grid.
+		for (y = 0; y < rows; ++y) {
+			for (x = 0; x < cols; ++x) {
+				grid[x][y] = new Monad(x, y, 1, MonadType.MONADS_BY_ID[ids.pop()], this);
+			}
+		}
+		return grid;
+	}
+	
+	function update(actions) {
+		dx = 0;
+		dy = 0;
+		
+		// Inidcates that something is happening and player input should generally be blocked.
+		isNotBusy = 
+			this.playerMovementCounter == null && 
+			this.playerMunchCounter == null &&
+			this.playerGrowthCounter == null;
+		
+		for (action : actions) {
+			switch (action) {
+				case Action.SPACE:
+					if (isNotBusy) this.munchCell();
+					break;
+				case Action.UP:
+					if (isNotBusy) dy = -1;
+					break;
+				case Action.DOWN:
+					if (isNotBusy) dy = 1;
+					break;
+				case Action.LEFT:
+					if (isNotBusy) dx = -1;
+					break;
+				case Action.RIGHT:
+					if (isNotBusy) dx = 1;
+					break;
+				case Action.GROW:
+					if (isNotBusy && this.playerSize < this.playerMaxGrowth) this.growPlayer();
+					break;
+				case Action.SHRINK:
+					if (isNotBusy) this.shrinkPlayer();
+					break;
+				case Action.ESCAPE:
+					this.switchScene(new QuitInquiryScene(this));
+					break;
+			}
+		}
+		
+		// Check to see if the player moved
+		x = this.playerX + dx * this.playerSize;
+		y = this.playerY + dy * this.playerSize;
+		if (x != this.playerX || y != this.playerY) {
+			// and that the intended target is on the board
+			if (x >= 0 && y >= 0 && x < this.cols && y < this.rows) {
+				this.movePlayer(x, y);
+			}
+		}
+		
+		// Update the munching animation if it is currently ongoing.
+		// Apply munching changes exactly half way through.
+		if (this.playerMunchCounter != null) {
+			this.playerMunchCounter++;
+			if (this.playerMunchCounter == MUNCH_ANIMATION_HALF) {
+				monad = this.grid[this.playerX][this.playerY];
+				if (monad != null) {
+					monad.munch();
+				}
+			} else if (this.playerMunchCounter >= MUNCH_ANIMATION_DURATION) {
+				this.playerMunchCounter = null;
+			}
+		}
+		
+		// Update the monster growth animation if it is currently ongoing.
+		if (this.playerGrowthCounter != null) {
+			if (this.playerGrowthCounter++ >= MONSTER_GROWTH_DURATION) {
+				this.playerGrowthCounter = null;
+			}
+		}
+		
+		if (this.growTextCounter != null) {
+			if (this.growTextCounter-- < -GROW_TEXT_FADE_DURATION) {
+				this.growTextCounter = null;
+			}	
+		}
+	}
+	
+	function triggerGrowText() {
+		this.growTextCounter = GROW_TEXT_OPAQUE_DURATION;
+	}
+	
+	function triggerWinScene() {
+		this.switchScene(new FadeTransitionScene(this, new WinScene()));
+	}
+	
+	// Shrink the player by a power of 2 and start the player growth animation counter.
+	function shrinkPlayer() {
+		if (this.playerSize != 1) {
+			this.playerSize /= 2;
+			this.playerGrowthCounter = 0;
+			this.playerSizeChangeIsGrowth = false;
+		}
+	}
+	
+	// Grow the player by a power of 2. Re-align the player such that they're on a 
+	// coordinate that can break the game.
+	function growPlayer() {
+		this.playerSize *= 2;
+		
+		// Don't allow the player to grow beyond their limit.
+		this.playerMaxGrowth = Math.max(this.playerMaxGrowth, this.playerSize);
+		
+		this.playerGrowthCounter = 0;
+		this.playerSizeChangeIsGrowth = true;
+		
+		// ensure player is on a non-game-breaking coordinate for this new size.
+		x = this.playerX / this.playerSize * this.playerSize;
+		y = this.playerY / this.playerSize * this.playerSize;
+		if (x != this.playerX || y != this.playerY) {
+			this.movePlayer(x, y);
+		}
+	}
+	
+	// Start the munching animation. Logical application is applied half way through the animation
+	// which is managed by update()
+	function munchCell() {
+		this.playerMunchCounter = 0;
+	}
+	
+	// Start the player movement animation and apply the coordinates. The player logically moves
+	// instantaneously, but the animation is a lag applied in rendering.
+	function movePlayer(x, y) {
+		this.playerMovementCounter = 0;
+		this.playerMovementStart = [this.playerX * TILE_SIZE, this.playerY * TILE_SIZE];
+		this.playerMovementEnd = [x * TILE_SIZE, y * TILE_SIZE];
+		this.playerX = x;
+		this.playerY = y;
+	}
+	
+	// Image file animation frame suffixes for the munching animation. There's a way to do 
+	// fancy math instead, but this is cleaner and easier.
+	static field MUNCH_FRAMES = [2, 3, 4, 5, 4, 3, 2];
+	
+	// Draw the monads and player with applicable animations.
+	function render() {
+		
+		// Draw the grow text, if present.
+		if (this.growTextCounter != null) {
+			TextRenderer.renderSmall(PlayScene.GROW_TEXT, 40, 20);
+			if (this.growTextCounter < 0) {
+				// A little hacky fade:
+				// Draw a translucent black rectangle over the top portion of the screen.
+				blackness = Math.floor(Math.ensureRange(-255 * this.growTextCounter / GROW_TEXT_FADE_DURATION, 0, 255));
+				Graphics2D.Draw.rectangle(0, 0, SCREEN_WIDTH, 50, 0, 0, 0, blackness);
+			}
+		}
+		
+		for (y = 0; y < this.rows; ++y) {
+			for (x = 0; x < this.cols; ++x) {
+				monad = this.grid[x][y];
+				// Stretched tiles will only occupy one cell in the top left corner.
+				// Other cells may be null.
+				if (monad != null) {
+					monad.render(BOARD_LEFT, BOARD_TOP);
+				}
+			}
+		}
+		
+		// Calculate where the player logically is.
+		px = this.playerX * TILE_SIZE + BOARD_LEFT;
+		py = this.playerY * TILE_SIZE + BOARD_TOP;
+		
+		// If the player's movement is being animated...
+		if (this.playerMovementCounter != null) {
+			this.playerMovementCounter++;
+			if (this.playerMovementCounter == MONSTER_MOVEMENT_DURATION) {
+				// animation is done. Clear the animation flag.
+				this.playerMovementCounter = null;
+			} else {
+				// interpolate between where you are and where you came from.
+				progress = 1.0 * this.playerMovementCounter / MONSTER_MOVEMENT_DURATION;
+				px = Math.floor(this.playerMovementStart[0] * (1 - progress) + this.playerMovementEnd[0] * progress) + BOARD_LEFT;
+				py = Math.floor(this.playerMovementStart[1] * (1 - progress) + this.playerMovementEnd[1] * progress) + BOARD_TOP;
+			}
+		}
+		
+		// Determine which image to draw.
+		playerImageFrame = 1;
+		if (this.playerMunchCounter != null) {
+			// Munching animation. 
+			frames = PlayScene.MUNCH_FRAMES;
+			index = frames.length * this.playerMunchCounter / MUNCH_ANIMATION_DURATION;
+			index = Math.min(index, frames.length - 1);
+			playerImageFrame = frames[index];
+		}
+		img = ImageLibrary.get('monster/monster_' + playerImageFrame + '.png');
+		
+		// Determine player size. Default to their current logical size. 
+		effectiveSize = this.playerSize;
+		if (this.playerGrowthCounter != null) {
+			if (this.playerSizeChangeIsGrowth) {
+				ratio = .5 + .5 * this.playerGrowthCounter / MONSTER_GROWTH_DURATION;
+			} else {
+				ratio = 2 - 1.0 * this.playerGrowthCounter / MONSTER_GROWTH_DURATION;
+			}
+			effectiveSize = this.playerSize * ratio;
+		}
+		
+		// The player image actually spills a little to the left and above where you 
+		// want to draw it.
+		offsetX = -4 * effectiveSize;
+		offsetY = -10 * effectiveSize;
+		
+		// Draw the monster.
+		x = Math.floor(px + offsetX);
+		y = Math.floor(py + offsetY);
+		width = Math.floor(img.width * effectiveSize);
+		height = Math.floor(img.height * effectiveSize);
+		img.drawStretched(x, y, width, height);
+	}
+}

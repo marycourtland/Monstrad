@@ -1,0 +1,38 @@
+<build>
+	<projectname>Monstrad</projectname>
+	<source>source/</source>
+	<output>output/%TARGET_NAME%</output>
+	
+	<imagesheets>
+		<sheet id="everything">
+			<prefix>images/</prefix>
+		</sheet>
+	</imagesheets>
+	
+	<!-- Targets -->
+	<target name="js_local">
+		<platform>javascript-app-gl</platform>
+	</target>
+	
+	<target name="js_remote">
+		<platform>javascript-app-gl</platform>
+		<jsfileprefix>/Monstrad/</jsfileprefix>
+	</target>
+	
+	<target name="games_browser">
+		<platform>javascript-app-gl</platform>
+		<jsfileprefix>games/monstrad</jsfileprefix>
+	</target>
+	
+	<target name="csharp">
+		<platform>csharp-app</platform>
+	</target>
+	
+	<target name="python">
+		<platform>python-app</platform>
+	</target>
+	
+	<target name="java">
+		<platform>java-app</platform>
+	</target>
+</build>

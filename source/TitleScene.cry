@@ -1,0 +1,158 @@
+import Graphics2D;
+import Math;
+
+/*
+	The title scene is a state machine with 4 states.
+*/
+enum TitlePhase {
+	// Show the splash without any options.
+	START,
+	
+	// Ease in black bars from the top and bottom.
+	ANIMATION,
+	
+	// Show the menu and let the user move the cursor around.
+	MENU,
+	
+	// Flash the cursor on the option user selected briefly before executing the option.
+	FLASH,
+}
+
+const TITLE_TRANSITION_DURATION = FPS / 2;
+
+class TitleScene : AbstractScene {
+	
+	field phase = TitlePhase.START;
+	field phaseCounter = 0;
+	field menuCursorIndex = 0;
+	field showOptions = false;
+	field blackBarProgress = 0.0; // ratio, 0.0 to 1.0
+	field commitOption = null;
+	
+	static field MENU_OPTIONS = [
+		"Play on a large board",
+		"Play on a small board",
+		"Instructions",
+	];
+	
+	// Allow the caller to start the title screen from a different state.
+	constructor(startingPhase = TitlePhase.START) : base() {
+		this.phase = startingPhase;
+		
+		// run one iteration of update so that all the state variables get set according to the desired scene.
+		this.update([]);
+	}
+	
+	// Update the animation, states, and if allowed, apply the user actions.
+	function update(actions) {
+		this.phaseCounter++;
+		
+		switch (this.phase) {
+			// Just wait 3 seconds.
+			case TitlePhase.START:
+				this.blackBarProgress = 0.0;
+				if (this.phaseCounter > FPS * 3) {
+					this.phaseCounter = 0;
+					this.phase = TitlePhase.ANIMATION;
+				}
+				break;
+			
+			// Ease in the black bars on the top and bottom.
+			case TitlePhase.ANIMATION:
+				this.blackBarProgress = 1.0 * this.phaseCounter / TITLE_TRANSITION_DURATION;
+				if (this.phaseCounter >= TITLE_TRANSITION_DURATION) {
+					this.phase = TitlePhase.MENU;
+					this.phaseCounter = 0;
+				}
+				break;
+			
+			// Apply user actions to the cursor.
+			case TitlePhase.MENU:
+				this.showOptions = true;
+				this.blackBarProgress = 1.0;
+				commit = false;
+				for (action : actions) {
+					switch (action) {
+						case Action.UP: this.menuCursorIndex--; break;
+						case Action.DOWN: this.menuCursorIndex++; break;
+						case Action.ENTER: commit = true; break;
+					}
+				}
+				
+				this.menuCursorIndex = Math.ensureRange(this.menuCursorIndex, 0, 2);
+				
+				if (commit) {
+					this.commitOption = this.menuCursorIndex;
+					this.phaseCounter = 0;
+					this.phase = TitlePhase.FLASH;
+				}
+				break;
+			
+			// Wait for a second (while the cursor flashes) and then apply the option.
+			case TitlePhase.FLASH:
+				this.showOptions = true;
+				this.blackBarProgress = 1.0;
+				if (this.phaseCounter >= FPS) {
+					switch (this.menuCursorIndex) {
+						case 0: this.playLargeBoard(); break;
+						case 1: this.playSmallBoard(); break;
+						case 2: this.startInstructions(); break;
+					}
+				}
+				break;
+		}
+	}
+	
+	// Handler for starting a game on a large board.
+	function playLargeBoard() {
+		this.switchScene(new FadeTransitionScene(this, new PlayScene(8, 8)));
+	}
+	
+	// Handler for starting a game on a small board.
+	function playSmallBoard() {
+		this.switchScene(new FadeTransitionScene(this, new PlayScene(4, 4)));
+	}
+	
+	// Handler for showing the instructions screen.
+	function startInstructions() {
+		this.switchScene(new InstructionsScene());
+	}
+	
+	function render() {
+		ImageLibrary.get('title.png').draw(0, 0);
+		
+		// Only draw black bars if the black bar progress has started.
+		// This will also prevent menu options from showing up.
+		if (this.blackBarProgress > 0) {
+			topBlackBar = Math.floor(60 * this.blackBarProgress);
+			bottomBlackBar = Math.floor(220 * this.blackBarProgress);
+			
+			Graphics2D.Draw.rectangle(0, 0, SCREEN_WIDTH, topBlackBar, 0, 0, 0);
+			Graphics2D.Draw.rectangle(0, SCREEN_HEIGHT - bottomBlackBar, SCREEN_WIDTH, bottomBlackBar, 0, 0, 0);
+			
+			// If options should be shown...
+			if (this.showOptions) {
+				x = 100;
+				y = 320;
+				TextRenderer.renderLarge("Press enter to choose an option:", x, y);
+				
+				y += 36;
+				for (i = 0; i < 3; ++i) {
+					// Determine if the '>' character should be shown in front of the option.
+					// This depends on both the cursor index, and whether or not the cursor is flashing.
+					showCaret = false;
+					if (this.menuCursorIndex == i) {
+						showCaret = this.phase != TitlePhase.FLASH || this.phaseCounter % 2 == 0;
+					}
+					
+					// Add > to the front of the option, maybe.
+					option = (showCaret ? '>' : ' ') + TitleScene.MENU_OPTIONS[i];
+					
+					// Draw text.
+					TextRenderer.renderLarge(option, x, y);
+					y += 18;
+				}
+			}
+		}
+	}
+}

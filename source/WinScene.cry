@@ -1,0 +1,21 @@
+/*
+	This scene displays the win message and awaits the enter key.
+*/
+class WinScene : AbstractScene {
+	
+	constructor() : base() { }
+	
+	function update(actions) {
+		for (action : actions) {
+			if (action == Action.ENTER) {
+				this.switchScene(new FadeTransitionScene(this, new TitleScene(TitlePhase.MENU)));
+			}
+		}
+	}
+	
+	function render() {
+		TextRenderer.renderLarge("Congratulations!", 240, 210);
+		
+		TextRenderer.renderSmall("(press enter to continue", 220, 280);
+	}
+}

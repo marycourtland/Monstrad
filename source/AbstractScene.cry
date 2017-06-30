@@ -1,0 +1,27 @@
+/*
+	The scene is the basic logical container unit of the current state of the game.
+	It has an update and render method. The update method takes in a list of user-action 
+	events which is just an enum.
+	
+	The only field is nextScene, which generally points to itself. After every frame,
+	the main game loop will swap out the current scene with nextScene.
+*/
+class AbstractScene {
+	
+	field nextScene = this;
+	
+	constructor() { }
+	
+	function update(actions) {
+		Core.assert(false, "Override me!");
+	}
+	
+	function render() {
+		Core.assert(false, "Override me!");
+	}
+	
+	function switchScene(scene) {
+		this.nextScene = scene;
+		scene.nextScene = scene;
+	}
+}

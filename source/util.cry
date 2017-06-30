@@ -1,0 +1,8 @@
+// Make a 2D list of lists.
+function makeGrid(width, height) {
+	output = [];
+	while (width-- > 0) {
+		output.add([null] * height);
+	}
+	return output;
+}

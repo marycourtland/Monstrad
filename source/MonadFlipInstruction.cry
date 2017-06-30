@@ -1,0 +1,53 @@
+/*
+	Describes a single flip between two Monads. This is a pair of offsets from a tile
+	and an axis to flip them over.
+*/
+class MonadFlipInstruction {
+
+	field monad1;
+	field monad2;
+	field axis;
+	
+	constructor(monad1, monad2, axis) {
+		this.monad1 = monad1;
+		this.monad2 = monad2;
+		this.axis = axis;
+	}
+	
+	/*
+		Performs the flip and applies it to a grid.
+		Checks to ensure that all monads are the same size and are within range of the grid.
+		Creates new Monad instances with the flipped types.
+		The logic to determine which monads convert into which type is taken care of by MonadType
+		which reads a table from a file.
+	*/
+	function perform(monad, grid) {
+	
+		axis = this.axis;
+		
+		cols = grid.length;
+		rows = grid[0].length;
+		
+		x1 = monad.x + MonadType.MONAD_NEIGHBOR_X[this.monad1] * monad.size;
+		y1 = monad.y + MonadType.MONAD_NEIGHBOR_Y[this.monad1] * monad.size;
+		x2 = monad.x + MonadType.MONAD_NEIGHBOR_X[this.monad2] * monad.size;
+		y2 = monad.y + MonadType.MONAD_NEIGHBOR_Y[this.monad2] * monad.size;
+		
+		// ensure that the ones you are trying to flip are not out of bounds.
+		if (x1 >= 0 && x2 >= 0 && y1 >= 0 && y2 >= 0 &&
+			x1 < cols && x2 < cols && y1 < rows && y2 < rows) {
+			
+			n1 = grid[x1][y1];
+			n2 = grid[x2][y2];
+			
+			// ensure these two cells are the same size as the current
+			if (n1 != null && n1.size == monad.size &&
+				n2 != null && n2.size == monad.size) {
+				
+				// perform the flip.
+				grid[x1][y1] = new Monad(x1, y1, monad.size, n2.type.flip(axis), monad.playScene);
+				grid[x2][y2] = new Monad(x2, y2, monad.size, n1.type.flip(axis), monad.playScene);
+			}
+		}
+	}
+}

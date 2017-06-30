@@ -1,0 +1,75 @@
+import Resources;
+
+/*
+	Draws text to the screen.
+	Two fonts: large and small
+*/
+class TextRenderer {
+	// Font images are lazily initialized.
+	static field font = null;
+	
+	static function renderSmall(text, x, y) {
+		TextRenderer.render('small', text, x, y);
+	}
+	
+	static function renderLarge(text, x, y) {
+		TextRenderer.render('large', text, x, y);
+	}
+	
+	// Load fonts from image files. Since it's not a great idea to encode the character in
+	// the file name (think slashes), there's a text file that maps character to file name.
+	static function initialize() {
+		filenames = {};
+		// This file contains a bunch of lines that contain the character value, a space, and the filename it's in.
+		for (line : Resources.readText('images/fonts/char_to_filename.txt').split('\n')) {
+			// e.g. "@ at", "% pe"
+			parts = line.trim().split(' ');
+			if (parts.length == 2) {
+				filenames[parts[0]] = parts[1];
+			}
+		}
+		
+		TextRenderer.font = {};
+		
+		// Iterate through both fonts
+		for (size : ['small', 'large']) {
+			// A font is basically just a dictionary of characters to image instances.
+			lookup = {};
+			
+			// iterate through the character/file pairs
+			for (char : filenames.keys()) {
+				// Load them with the regular ImageLibrary.
+				file = filenames[char];
+				lookup[char] = ImageLibrary.get('fonts/' + size + '/' + file + '.png');
+			}
+			TextRenderer.font[size] = lookup;
+		}
+	}
+	
+	static function render(size, text, x, y) {
+		if (TextRenderer.font == null) {
+			// load and try again
+			TextRenderer.initialize();
+			return TextRenderer.render(size, text, x, y);
+		}
+		
+		// lookup of characters to image instances.
+		lookup = TextRenderer.font[size];
+		
+		// iterate through the characters
+		for (char : text) {
+			if (char == ' ') {
+				// If it's a space, just add the width of a character, but don't draw it.
+				x += lookup['v'].width;
+			} else {
+				// Otherwise draw the image.
+				img = lookup.get(char);
+				if (img == null) {
+					img = lookup['?'];
+				}
+				img.draw(x, y);
+				x += img.width;
+			}
+		}
+	}
+}
