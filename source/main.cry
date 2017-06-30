@@ -1,4 +1,5 @@
 import Game;
+import Graphics2D;
 
 const FPS = 30;
 const SCREEN_WIDTH = 640;
@@ -56,7 +57,7 @@ function main() {
 		activeScene.update(actions);
 		
 		// Clear the screen to black.
-		GFX.Draw.fill(0, 0, 0);
+		Graphics2D.Draw.fill(0, 0, 0);
 		
 		activeScene.render();
 		

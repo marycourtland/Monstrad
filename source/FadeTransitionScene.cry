@@ -1,4 +1,4 @@
-import GFX;
+import Graphics2D;
 import Math;
 
 const FADE_DURATION = FPS * 2;
@@ -42,6 +42,6 @@ class FadeTransitionScene : AbstractScene {
 		this.currentBg.render();
 		
 		// Draw a black overlay with some amount of opacity.
-		GFX.Draw.rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, 0, Math.floor(255 * this.blackness));
+		Graphics2D.Draw.rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, 0, Math.floor(255 * this.blackness));
 	}
 }

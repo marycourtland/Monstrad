@@ -1,4 +1,4 @@
-import GFX;
+import Graphics2D;
 import Math;
 
 const MUNCH_ANIMATION_DURATION = FPS / 3;
@@ -225,7 +225,7 @@ class PlayScene : AbstractScene {
 				// A little hacky fade:
 				// Draw a translucent black rectangle over the top portion of the screen.
 				blackness = Math.floor(Math.ensureRange(-255 * this.growTextCounter / GROW_TEXT_FADE_DURATION, 0, 255));
-				GFX.Draw.rectangle(0, 0, SCREEN_WIDTH, 50, 0, 0, 0, blackness);
+				Graphics2D.Draw.rectangle(0, 0, SCREEN_WIDTH, 50, 0, 0, 0, blackness);
 			}
 		}
 		

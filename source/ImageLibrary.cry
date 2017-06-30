@@ -1,4 +1,4 @@
-import GFX;
+import Graphics2D;
 
 /*
 	A class that wraps a dictionary of image paths to image instances.
@@ -10,13 +10,17 @@ import GFX;
 class ImageLibrary {
 	
 	static field images = {};
+
+	// Set by the LoadingScene
+	static field imageSheet = null;
 	
 	constructor() { }
 	
 	static function get(path) {
 		img = ImageLibrary.images.get(path);
 		if (img == null) {
-			img = ImageLoader.fromResource('images/' + path).getImage();
+			rawResource = ImageLibrary.imageSheet.getImage('images/' + path);
+			img = Graphics2D.GraphicsTexture.load(rawResource);
 			ImageLibrary.images[path] = img;
 		}
 		return img;

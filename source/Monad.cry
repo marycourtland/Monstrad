@@ -1,5 +1,3 @@
-import GFX;
-
 const TILE_SIZE = 40;
 
 /*

@@ -3,28 +3,36 @@
 	<source>source/</source>
 	<output>output/%TARGET_NAME%</output>
 	
-	<spritesheets>
+	<imagesheets>
 		<sheet id="everything">
 			<prefix>images/</prefix>
 		</sheet>
-	</spritesheets>
+	</imagesheets>
 	
 	<!-- Targets -->
 	<target name="js_local">
-		<platform>js</platform>
+		<platform>javascript-app-gl</platform>
 	</target>
 	
 	<target name="js_remote">
-		<platform>js</platform>
+		<platform>javascript-app-gl</platform>
 		<jsfileprefix>/Monstrad/</jsfileprefix>
-		<minified>true</minified>
 	</target>
 	
-	<target name="windows">
-		<platform>csopengl</platform>
+	<target name="games_browser">
+		<platform>javascript-app-gl</platform>
+		<jsfileprefix>games/monstrad</jsfileprefix>
+	</target>
+	
+	<target name="csharp">
+		<platform>csharp-app</platform>
 	</target>
 	
 	<target name="python">
-		<platform>python</platform>
+		<platform>python-app</platform>
+	</target>
+	
+	<target name="java">
+		<platform>java-app</platform>
 	</target>
 </build>

@@ -1,3 +1,4 @@
+import Math;
 import Resources;
 
 /*
@@ -189,15 +190,15 @@ class MonadType {
 	// incrementing ID's as unique values are found, or re-using ID's for values that already exist.
 	static function canonicalizeIds(ids) {
 		idNum = {ids[0]: 1};
-		max = 1;
+		_max = 1; // using 'max' as a variable would collide with the max function in Math
 		a = 1;
-		b = idNum.get(ids[1], max + 1);
+		b = idNum.get(ids[1], _max + 1);
 		idNum[ids[1]] = b;
-		max = Math.max(max, b);
-		c = idNum.get(ids[2], max + 1);
+		_max = Math.max(_max, b);
+		c = idNum.get(ids[2], _max + 1);
 		idNum[ids[2]] = c;
-		max = Math.max(max, c);
-		d = idNum.get(ids[3], max + 1);
+		_max = Math.max(_max, c);
+		d = idNum.get(ids[3], _max + 1);
 		idNum[ids[3]] = d;
 		return '' + a + b + c + d;
 	}

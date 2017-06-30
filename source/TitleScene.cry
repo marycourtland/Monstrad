@@ -1,3 +1,6 @@
+import Graphics2D;
+import Math;
+
 /*
 	The title scene is a state machine with 4 states.
 */
@@ -124,8 +127,8 @@ class TitleScene : AbstractScene {
 			topBlackBar = Math.floor(60 * this.blackBarProgress);
 			bottomBlackBar = Math.floor(220 * this.blackBarProgress);
 			
-			GFX.Draw.rectangle(0, 0, SCREEN_WIDTH, topBlackBar, 0, 0, 0);
-			GFX.Draw.rectangle(0, SCREEN_HEIGHT - bottomBlackBar, SCREEN_WIDTH, bottomBlackBar, 0, 0, 0);
+			Graphics2D.Draw.rectangle(0, 0, SCREEN_WIDTH, topBlackBar, 0, 0, 0);
+			Graphics2D.Draw.rectangle(0, SCREEN_HEIGHT - bottomBlackBar, SCREEN_WIDTH, bottomBlackBar, 0, 0, 0);
 			
 			// If options should be shown...
 			if (this.showOptions) {
